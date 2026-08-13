@@ -1,0 +1,2756 @@
+/* 색·크기는 옵시디언 CSS 변수로만 잡는다(스1). 폰트는 지정하지 않는다 — 네이티브 값을 상속받아야 한다. */
+
+/*
+ * 표 — 네이티브 표 뷰와 같은 형태로 보이게 한다. 치수·색은 네이티브가 body 에 정의해 둔 --bases-table-* 를
+ * 그대로 쓴다(스1 · app.css:2051-2071). 구조 클래스(.bases-tr · .bases-td)는 빌리지 않는다 —
+ * 그쪽은 position:absolute 라 가상 스크롤이 JS 로 넣어 주는 좌표가 있어야 서고(app.css:15615·15626),
+ * 좌표 없이 클래스만 쓰면 행이 전부 한자리에 겹친다.
+ */
+
+/*
+ * 임베드 바깥 테두리는 **뷰 종류마다 켜는 것**이지 자동이 아니다.
+ * 코어는 노트 안 임베드의 `.bases-view` 에 `border-width: var(--bases-embed-border-width)` 를 걸지만
+ * (app.css:14325-14332), 그 변수의 body 기본값이 `0px` 이라(app.css:2038) 실제로 선이 보이는 것은
+ * `--bases-embed-border-width` 를 올려 주는 표 뷰뿐이다(app.css:15351 — 카드·목록도 안 켠다).
+ * 우리 뷰 종류에도 같은 선언을 걸어 임베드에서 표와 같은 테두리를 얻는다.
+ * `--bases-view-padding` 도 표 뷰와 같은 값으로 맞춘다 — 아래 60px 빈 띠가 생기지 않게.
+ */
+.bases-view[data-view-type="bases-plus-table"] {
+	--bases-view-padding: 0;
+	--bases-embed-border-width: var(--border-width);
+}
+
+.bases-plus-view {
+	padding: 0;
+
+	/*
+	 * 순서 모드의 손잡이 열. 폭 토큰은 마크다운 표의 행 손잡이와 같은 것이다(app.css:3633).
+	 * **폴백이 장식이 아니다** — `--table-drag-handle-size` 는 `.cm-table-widget` 안에서만 정의돼 있어
+	 * (전역 실측: 그 선택자 바깥에는 없다) 우리 뷰에서는 늘 폴백 16px 이 쓰인다.
+	 *
+	 * 헤더·헤딩·행·그룹 푸터·뷰 푸터가 전부 이 값을 leading padding 으로 받아 축이 하나로 남는다 —
+	 * 열 하나만 미는 것이 아니라 표 전체가 같은 값만큼 민다(A3).
+	 */
+	--bases-plus-order-gutter: 0px;
+}
+
+.bases-plus-view.is-ordering {
+	--bases-plus-order-gutter: var(--table-drag-handle-size, var(--size-4-4));
+}
+
+/*
+ * 줄마다 `--bases-plus-lead` 를 자기 값으로 정의한다. 값이 다른 이유는 **축이 상자가 아니라 잉크**여서다 —
+ * 그 줄에 들어가는 컨트롤의 안쪽 여백이 달라(아이콘 버튼 6px · 문구 버튼 4px), 글자와 글리프의 왼쪽 끝을
+ * 셀 값과 같은 8px 에 세우려면 상자를 다르게 시작해야 한다(A2).
+ */
+.bases-plus-thead,
+.bases-plus-row,
+.bases-plus-group-heading,
+.bases-plus-group-footer,
+.bases-plus-footer-bar {
+	padding-inline-start: calc(var(--bases-plus-order-gutter) + var(--bases-plus-lead, 0px));
+}
+
+/*
+ * 기능이 조건 때문에 지금 동작하지 않을 때만 나오는 한 줄. 확정분의 모달 안내 띠와 **같은 선언**을 쓴다 —
+ * 같은 성격(할 수 없는 이유를 조용히 알려 주는 한 줄)이라 같은 모습이어야 한다(A4).
+ * 오류가 아니라 상태 설명이라 `--text-error` 를 쓰지 않는다.
+ */
+.bases-plus-notice {
+	padding: var(--size-2-3) var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	box-shadow: 0 var(--border-width) 0 var(--background-modifier-border);
+}
+
+/*
+ * 표는 **늘 내용 폭으로 선다**. 좁으면 `min-width` 가 화면을 채우고, 넘치면 가로로 스크롤된다(네이티브와 같다).
+ *
+ * 예전에는 전 열이 확정 폭일 때만(`.is-sized`) 내용 폭으로 세웠다 — 유동 열이 섞이면 행마다 폭이 달리
+ * 계산돼 헤더와 본문이 어긋나기 때문이었다. **8차부터 모든 열이 px 기준(사용자 지정 또는 자동 측정)을
+ * 갖게 되어 그 전제가 사라졌다.**
+ *
+ * 이걸 안 하면 열 합이 화면보다 넓을 때 **행 상자가 화면 폭에서 끝난다** — 행이 긋는 가로 구분선과
+ * 표 테두리가 거기서 잘려, 오른쪽 열들 사이에 선 없는 빈 띠가 생긴다(마스터 9차 2번 · 캡처 211651).
+ */
+.bases-plus-table {
+	width: max-content;
+	min-width: 100%;
+}
+
+/* 세로로 스크롤해도 열 이름이 남는다 — 스크롤 주체는 코어의 .bases-view(overflow:auto)다. */
+.bases-plus-thead {
+	display: flex;
+	position: sticky;
+	top: 0;
+	z-index: var(--layer-cover);
+	height: var(--bases-table-row-height);
+	background-color: var(--bases-table-header-background);
+	box-shadow: inset 0 calc(var(--bases-table-row-border-width) * -1) 0 var(--bases-table-border-color);
+}
+
+.bases-plus-th {
+	display: flex;
+	align-items: center;
+	flex: 1 1 0;
+	/* 폭 조절 손잡이가 이 칸을 기준으로 선다. 넘치는 글자는 라벨이 스스로 자른다. */
+	position: relative;
+}
+
+/*
+ * 열 경계의 폭 조절 손잡이 — 두께·커서는 네이티브와 같다(app.css:15478-15495).
+ * 다만 네이티브처럼 1px 밖으로 내밀지 않는다. 마지막 열의 손잡이가 표 밖으로 나가면 표가 화면에 딱 맞을 때도
+ * 가로 스크롤이 1px 생긴다(실측: scrollWidth 884 대 clientWidth 883).
+ */
+.bases-plus-th-resizer {
+	position: absolute;
+	inset-block: 0;
+	inset-inline-end: 0;
+	width: 6px;
+	cursor: col-resize;
+	z-index: var(--layer-cover);
+	/* 없으면 터치로 끌 때 표가 같이 스크롤된다. */
+	touch-action: none;
+}
+
+.bases-plus-th-resizer.is-active {
+	background-color: var(--color-accent);
+}
+
+@media (hover: hover) {
+	.bases-plus-th-resizer:hover {
+		background-color: var(--divider-color-hover);
+	}
+}
+
+/*
+ * 여백은 헤더 칸이 아니라 이 라벨이 가진다. flex-basis 가 0 이면 칸의 padding 이 폭 계산에 그대로 얹혀
+ * 본문 열(여백이 값 요소 안에 있다)과 어긋난다 — 실측으로 열이 344 대 353 으로 벌어졌다.
+ *
+ * 아이콘·이름 두 조각을 담는 것도 네이티브와 같다(`.bases-table-header-label`, app.css:15461-15475) —
+ * 아이콘 크기(--icon-xs)·간격(--size-4-1)을 그 선언에서 그대로 옮겼다.
+ */
+.bases-plus-th-label {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-1);
+	width: 100%;
+	min-width: 0;
+	padding-inline: var(--size-4-2);
+	font-size: var(--bases-table-font-size);
+	font-weight: var(--bases-table-header-weight);
+	color: var(--bases-table-header-color);
+	--icon-size: var(--icon-xs);
+	--icon-stroke: var(--icon-xs-stroke-width);
+}
+
+/*
+ * 속성 유형 아이콘. 네이티브는 표시 여부를 `--bases-table-header-icon-display` 로 두어 테마가 끌 수 있게
+ * 했다(app.css:15476-15479) — 같은 변수를 쓰면 우리 표도 그 설정을 함께 따른다.
+ */
+.bases-plus-th-icon {
+	display: var(--bases-table-header-icon-display);
+	align-items: center;
+	flex: 0 0 auto;
+	color: var(--bases-table-header-color);
+}
+
+/* 말줄임은 이름이 맡는다 — 아이콘은 줄어들지 않고 이름만 잘린다. */
+.bases-plus-th-name {
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* 마지막 행 아래를 닫는 선. 네이티브 `.bases-tbody` 가 같은 선언을 갖는다(app.css:15502-15507). */
+.bases-plus-rows {
+	/* 드롭 표시자가 이 안에서 좌표를 잡는다 — 절대 배치의 기준이 될 조상이 필요하다(C2). */
+	position: relative;
+	background-color: var(--background-primary);
+	box-shadow: 0 var(--bases-table-row-border-width) 0 var(--bases-table-border-color);
+}
+
+.bases-plus-row {
+	display: flex;
+	align-items: center;
+	/* 순서 손잡이가 이 행 안에서 자리를 잡는다. 없으면 `.bases-plus-rows` 기준이 되어 전부 맨 위에 겹친다. */
+	position: relative;
+	height: var(--bases-table-row-height);
+	box-shadow: 0 calc(var(--bases-table-row-border-width) * -1) 0 var(--bases-table-border-color);
+	cursor: var(--cursor, default);
+}
+
+/*
+ * 행 호버는 두지 않는다(C1). T25 때는 행 전체가 클릭 대상이라 넣었지만 T26 에서 진입점이 이름 링크로
+ * 되돌아갔다 — 지금 호버를 두면 눌리지 않는 자리를 눌릴 것처럼 보이게 하는 거짓 신호다. 네이티브도 없다.
+ * 키보드 포커스 표시는 진입점과 무관한 접근성 장치라 남긴다.
+ */
+.bases-plus-row:focus-visible {
+	outline: var(--border-width) solid var(--interactive-accent);
+	outline-offset: calc(var(--border-width) * -1);
+}
+
+.bases-plus-cell {
+	display: flex;
+	align-items: center;
+	flex: 1 1 0;
+	height: 100%;
+	overflow: hidden;
+
+	/*
+	 * **코어가 입력 요소에 칠하는 폼 필드 배경을 이 칸 안에서는 꺼 둔다.**
+	 * `--background-modifier-form-field` 는 라이트에서 흰색(`--color-base-00`, app.css:2881)이고,
+	 * 코어는 그 값을 `input[type=...]` 의 기본·`:hover`·`:active` 에 칠한다. 그중 `:hover` 는 명시도가
+	 * (0,2,1)이라 우리 두 단짜리 리셋(0,2,0)을 **이긴다** — 마우스를 올린 순간 알약 칸의 상시 입력칸이
+	 * 흰 네모로 떠서 셀 배경과 어긋났다(마스터 10차 1번 · 캡처 214712).
+	 *
+	 * 상태마다 셀렉터로 싸우는 대신 **변수를 꺼서** 모든 상태를 한 번에 잡는다 — 네이티브도 검색 줄에서
+	 * 같은 방식을 쓴다(`.bases-search-row`, app.css:14960-14964).
+	 */
+	--background-modifier-form-field: transparent;
+	--background-modifier-form-field-hover: transparent;
+	--input-border-width: 0;
+	--input-border-width-focus: 0;
+}
+
+/*
+ * 열 폭은 균등 분배다(flex-basis 0 — 헤더와 본문이 같은 규칙이라 열이 어긋나지 않는다).
+ * 다만 첫 열은 대개 파일 이름이라 두 배로 준다 — 네이티브가 내용을 재서 정하는 폭에 가장 가까운 근사다.
+ * 실제 열 폭 조절·가로 스크롤은 묶음 B 소관이다.
+ */
+.bases-plus-thead > .bases-plus-th:first-child,
+.bases-plus-row > .bases-plus-cell:first-child {
+	flex-grow: 2;
+}
+
+/*
+ * 세로 열 구분선. 네이티브 `.bases-td` 는 첫 열까지 포함해 모든 칸의 왼쪽에 선을 그어(app.css:15626-15634)
+ * 표의 왼쪽 끝도 닫힌다 — 같게 맞춘다. 위(헤더 선)·아래(`.bases-plus-rows`)와 합쳐져 바깥 테두리가 된다.
+ *
+ * 최소 폭은 네이티브와 같은 하한이다(C4). 토큰이 단위 없는 수라(app.css:2068) px 를 곱해 쓴다 —
+ * 열이 두셋뿐인 base 에서 균등 분배가 지나치게 넓은 열을 만드는 것을 막는다.
+ * 말줄임은 안쪽 요소(.bases-plus-th-label·.bases-plus-value)가 min-width:0 으로 계속 맡는다.
+ */
+.bases-plus-th,
+.bases-plus-cell {
+	box-shadow: calc(var(--bases-table-column-border-width) * -1) 0 0 var(--bases-table-border-color);
+	min-width: calc(var(--bases-table-column-min-width) * 1px);
+}
+
+/* 폭 조절과 우클릭 메뉴가 걸린 자리라 네이티브 헤더와 같은 호버 신호를 준다(C2 · app.css:15430). */
+@media (hover: hover) {
+	.bases-plus-th:hover {
+		background-color: var(--bases-table-header-background-hover);
+	}
+}
+
+/*
+ * 그룹 헤딩 — 네이티브 `.bases-group-heading`(app.css:14403-14427)과 같은 치수·변수를 쓴다.
+ * 네이티브는 헤딩에 배경이 없고 컨테이너의 group-background 가 비쳐 보이는 구조인데, 우리는 행 컨테이너가
+ * 하나뿐이라 헤딩이 직접 그 색을 갖는다 — 결과 픽셀은 같다.
+ *
+ * 위쪽 10px 은 그룹 사이 띠다. 네이티브는 그룹마다 표를 따로 만들고 그 사이를 --bases-table-group-gap 만큼
+ * 벌리는데(app.js 오프셋 3138503), **첫 그룹 앞에는 넣지 않는다.** 우리는 마스터 요구(그룹 간 여백 균일)에 따라 첫 그룹에도 같은 띠를 준다 — 네이티브와 다른 유일한 지점이 여기 10px 이다.
+ * 네이티브와 똑같이 되돌리려면 아래 .is-first-group 규칙에 `height: var(--bases-table-row-height);
+ * padding-block-start: 0;` 두 줄을 넣으면 된다.
+ */
+.bases-plus-group-heading {
+	/* 확정분의 8px 이 그대로 여기로 옮겨 온 것뿐이다 — 값이 바뀌지 않는다(A3). */
+	--bases-plus-lead: var(--size-4-2);
+
+	/* 값이 링크일 때 파란 링크가 아니라 헤딩 글자로 보이게 한다 — 네이티브의 선언을 그대로 옮겼다. */
+	--link-color: var(--bases-group-heading-value-color);
+	--link-unresolved-color: var(--bases-group-heading-value-color);
+	--link-unresolved-opacity: 1;
+	--link-decoration: none;
+	--link-weight: var(--bases-group-heading-value-weight);
+	--link-color-hover: var(--bases-group-heading-value-color);
+
+	display: flex;
+	align-items: baseline;
+	position: relative;
+	gap: var(--size-4-1);
+	height: calc(var(--bases-table-row-height) + var(--bases-table-group-gap));
+	padding-block-start: var(--bases-table-group-gap);
+	line-height: var(--bases-table-row-height);
+	background-color: var(--bases-table-group-background);
+	box-shadow: 0 calc(var(--bases-table-row-border-width) * -1) 0 var(--bases-table-border-color);
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	max-width: 100%;
+}
+
+/*
+ * 첫 그룹은 바로 위가 고정 헤더다. 헤더가 이미 아래 선을 그으므로 헤딩의 위 선까지 겹치면 선이 두 겹으로 보인다.
+ * 여백은 다른 그룹과 같게 두고 선만 뺀다.
+ */
+.bases-plus-group-heading.is-first-group {
+	box-shadow: none;
+}
+
+/* 그룹 기준 속성 이름. 테마가 네이티브 헤딩을 손보면 우리 것도 같이 따라오도록 같은 변수를 쓴다. */
+.bases-plus-group-property {
+	font-size: var(--bases-group-heading-property-size);
+	font-weight: var(--bases-group-heading-property-weight);
+	color: var(--bases-group-heading-property-color);
+	display: var(--bases-group-heading-property-display);
+}
+
+.bases-plus-group-value {
+	font-size: var(--bases-group-heading-value-size);
+	font-weight: var(--bases-group-heading-value-weight);
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/*
+ * 접기 화살표 — 코어 `.collapse-icon`(app.css:7844-7860)의 선언을 옮겼다.
+ * `:before` 의 zero-width space 는 장식이 아니라 **필수**다 — 헤딩이 `align-items: baseline` 이라
+ * svg 만 있는 flex 항목은 기준선이 없어 세로로 튄다. 코어가 같은 이유로 같은 줄을 갖고 있다.
+ */
+.bases-plus-group-toggle {
+	display: flex;
+	align-items: center;
+	flex: 0 0 auto;
+}
+
+.bases-plus-group-toggle:before {
+	content: "\200B";
+}
+
+.bases-plus-group-toggle svg {
+	width: 10px;
+	height: 10px;
+	stroke-width: 4px;
+	color: var(--nav-collapse-icon-color);
+	transition: transform 100ms ease-in-out;
+}
+
+.bases-plus-group-heading.is-collapsed .bases-plus-group-toggle svg {
+	transform: rotate(calc(var(--direction) * -1 * 90deg));
+}
+
+/* 회전은 상태를 알리는 장식이라 모션을 줄인 환경에서는 즉시 뒤집는다(I4). */
+@media (prefers-reduced-motion: reduce) {
+	.bases-plus-group-toggle svg {
+		transition: none;
+	}
+}
+
+/* 헤딩 전체가 누르는 자리가 되므로 열 헤더와 같은 호버 신호를 준다 — 둘 다 누르면 뭔가 하는 표 껍데기다. */
+.bases-plus-group-heading.is-collapsible {
+	cursor: var(--cursor, default);
+}
+
+@media (hover: hover) {
+	.bases-plus-group-heading.is-collapsible:hover {
+		background-color: var(--bases-table-header-background-hover);
+	}
+}
+
+/*
+ * 그룹의 실제 행 수. 자리·크기는 나무 항목의 보조 숫자(`.tree-item-flair`, app.css:10440-10448)에서 빌리되
+ * **색만 한 단계 올린다** — 저쪽은 없어도 되는 배지고 이쪽은 F9·F10 에서 그룹 크기를 말하는 유일한 단서다.
+ * `--text-faint` 로 두면 대비가 2.20:1 이라 읽히지 않는다(I3).
+ */
+.bases-plus-group-count {
+	margin-inline-start: auto;
+	padding-inline-end: var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 잘린 그룹의 마지막 줄. 행과 같은 높이·같은 아래 선이라 표의 리듬을 깨지 않는다(D3).
+ * `Show all` 은 문구 버튼(여백 4)이고 그룹 페이저는 아이콘 버튼(여백 6)이라, 잉크를 같은 8px 에 세우려면
+ * 상자가 다르게 시작해야 한다 — 그래서 무엇이 들어가느냐로 lead 가 갈린다(A2).
+ */
+.bases-plus-group-footer {
+	--bases-plus-lead: var(--size-2-2);
+
+	display: flex;
+	align-items: center;
+	height: var(--bases-table-row-height);
+	background-color: var(--background-primary);
+	box-shadow: 0 calc(var(--bases-table-row-border-width) * -1) 0 var(--bases-table-border-color);
+}
+
+.bases-plus-group-footer.is-paged {
+	--bases-plus-lead: var(--size-2-1);
+}
+
+/*
+ * 네이티브 아이콘+문구 컨트롤(`.text-icon-button`, app.css:8044-8104)의 선언을 옮겼다.
+ * 확정분의 모달 액션 버튼과 같은 규칙이다 — 같은 성격(보조 행동)이라 같은 모습이어야 한다.
+ *
+ * 셀렉터가 2단인 이유는 모달 액션과 같다 — 코어 `button:not(.clickable-icon)`(app.css:7188)의 명시도가
+ * (0,1,1)이라 한 단짜리 클래스로는 background-color·box-shadow 를 못 이긴다.
+ */
+.bases-plus-group-footer .bases-plus-group-more {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	height: auto;
+	padding: var(--size-2-2);
+	border: 0;
+	border-radius: var(--button-radius);
+	font-size: var(--font-ui-small);
+	font-weight: var(--input-font-weight);
+	color: var(--text-muted);
+	background-color: transparent;
+	box-shadow: none;
+	cursor: var(--cursor, default);
+}
+
+@media (hover: hover) {
+	.bases-plus-group-footer .bases-plus-group-more:hover {
+		background-color: var(--background-modifier-hover);
+		color: var(--text-normal);
+	}
+}
+
+.bases-plus-group-footer .bases-plus-group-more:focus-visible {
+	box-shadow: 0 0 0 var(--input-border-width-focus) var(--background-modifier-border-focus);
+	outline: none;
+}
+
+/*
+ * 편집 중인 칸. 강조 테두리는 **입력칸이 아니라 셀**이 갖는다 — 네이티브도 `.bases-td:focus-within` 이
+ * 그 역할을 한다(app.css:15641-15648). 입력칸이 직접 모서리를 둥글리면 셀 안에서 잘려 보인다.
+ */
+.bases-plus-cell.is-editing {
+	background-color: var(--bases-table-cell-background-active);
+	border-radius: var(--bases-table-cell-radius-focus);
+	box-shadow: var(--bases-table-cell-shadow-focus);
+	z-index: 1;
+}
+
+/*
+ * 입력칸은 셀을 꽉 채우는 평면이다 — 자기 테두리·배경·모서리를 갖지 않는다.
+ *
+ * **셀렉터가 2단인 이유** — 코어는 입력칸을 타입 선택자로 잡는다(`input[type='text']` 등, app.css:8177-8191)
+ * 이고 그 명시도가 (0,1,1)이다. 한 단짜리 `.bases-plus-cell-input`(0,1,0)으로 리셋하면 **전부 진다.**
+ * 실제로 T37 의 리셋은 통째로 죽어 있었다(프리뷰 실측: border-radius 8px · padding 0 · font-size 13px ·
+ * 입력칸이 셀을 안 채움) — 그 둥근 모서리와 포커스 링이 마스터가 6차에서 본 "입력칸 안 원형"이다.
+ * 이 파일이 app.css 뒤에 로드되므로 명시도만 같아도 이기지만, 로드 순서에 기대지 않게 한 단 높여 둔다.
+ */
+.bases-plus-cell .bases-plus-cell-input {
+	width: 100%;
+	height: 100%;
+	border: none;
+	border-radius: 0;
+	box-shadow: none;
+	background-color: transparent;
+	/*
+	 * 여백은 입력칸이 아니라 부모(`.bases-rendered-value` — 코어가 --metadata-input-padding 을 준다)가 갖는다.
+	 * 여기서 또 주면 글자가 8px 더 밀려 편집 전후로 튄다. 코어도 같은 자리를 0 으로 만든다(app.css:14387).
+	 * 글꼴도 물려받는다 — --bases-table-font-size 는 em 이라 값 요소 안에서 다시 쓰면 0.875 가 두 번 곱해진다.
+	 */
+	padding: 0;
+	font-size: inherit;
+	line-height: inherit;
+}
+
+/*
+ * 텍스트는 여러 줄이 된다(마스터 7차 3번 — Shift+Enter 로 줄바꿈). textarea 라 코어의 `textarea` 선언
+ * (app.css:8177 계열, 명시도 (0,0,1))도 함께 눌러야 자기 테두리·배경이 사라진다.
+ * 표시 상태는 건드리지 않는다 — 한 줄 말줄임 그대로다(가이드 절 A).
+ */
+.bases-plus-cell .bases-plus-cell-textarea {
+	display: block;
+	resize: none;
+	overflow: hidden;
+	/*
+	 * min-height 를 행 높이로 두면 안 된다 — 부모 여백(4px×2)이 더해져 **한 줄짜리 편집에서도** 칸이
+	 * 8px 자라 아래 행을 덮는다(8차 3번 캡처의 회색 띠). `rows="1"` 이 한 줄 높이를 주고,
+	 * 그다음은 JS 가 scrollHeight 로 맞춘다.
+	 */
+	height: auto;
+	white-space: pre-wrap;
+	word-break: break-word;
+	/* 폭은 셀을 넘지 않는다 — 코어 textarea 의 기본 폭(cols 기준)이 셀보다 넓어 밖으로 삐져나왔다(8차 3번). */
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+/*
+ * 편집 중인 칸만 높이를 푼다. 행은 높이가 고정이라 자란 칸이 아래 행 위로 덮이는데, 이미 z-index·배경·
+ * 강조 테두리를 갖고 있어 떠 있는 편집기로 읽힌다(네이티브도 `.bases-td:focus-within` 에서 같은 처방이다 —
+ * `height: fit-content; min-height: var(--bases-table-row-height)`, app.css:15641-15648).
+ * `flex-start` 가 없으면 행의 align-items:center 때문에 위아래로 같이 자라 윗 행까지 덮는다.
+ */
+.bases-plus-row > .bases-plus-cell.is-editing {
+	align-self: flex-start;
+	height: auto;
+	min-height: var(--bases-table-row-height);
+	/*
+	 * `overflow: visible` 로 두면 안 된다 — 편집기가 셀 밖으로 새어 옆 열을 침범한다(8차 3번 캡처).
+	 * 네이티브도 `.bases-td` 는 `overflow: hidden` 인 채로 **높이만** 늘린다. 가로는 셀이 잡고 세로만 자란다.
+	 */
+	overflow: hidden;
+}
+
+/*
+ * 빈 날짜 칸의 흐린 플레이스홀더. 노출 조건을 네이티브와 같게 맞췄다 — 평시에는 안 보이고
+ * **호버·포커스 때만** 드러난다(app.css:15656-15664 `.bases-td .metadata-input.mod-date.is-empty`).
+ * 마스터 캡처 203254 에서 빈 칸의 "연도. 월. 일." 이 보였던 것은 그 행이 호버 중이었기 때문이다
+ * (툴팁 "날짜 선택도구 표시" 가 그 칸 아래에 걸려 있는 것이 근거).
+ * 표시 전용이라 포인터를 받지 않는다 — 클릭은 셀이 받아 기존 편집 경로로 간다.
+ */
+.bases-plus-cell .bases-plus-empty-date {
+	opacity: 0;
+	width: 100%;
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	padding: 0;
+	font-size: inherit;
+	pointer-events: none;
+	--input-placeholder-color: var(--text-faint);
+}
+
+@media (hover: hover) {
+	.bases-plus-cell:hover .bases-plus-empty-date {
+		opacity: 1;
+	}
+}
+
+.bases-plus-cell:focus-within .bases-plus-empty-date {
+	opacity: 1;
+}
+
+/* 코어 `input[type='text']:focus`(0,2,1)를 이겨야 한다 — 강조는 셀이 그리고 입력칸은 링을 갖지 않는다. */
+.bases-plus-cell .bases-plus-cell-input:focus,
+.bases-plus-cell .bases-plus-cell-input:focus-visible {
+	box-shadow: none;
+	border: none;
+	outline: none;
+}
+
+/*
+ * 목록·태그 셀 — 코어 속성 편집기의 알약 어휘를 그대로 쓴다(app.css:9179-9245). 알약·지우기 버튼의 모양은
+ * 코어 규칙이 그리고, 여기서는 **표 셀에 앉히는 데 필요한 것만** 덮는다.
+ * 표 행은 높이가 고정이라 네이티브처럼 줄바꿈(wrap)하면 셀 밖으로 넘친다 — 한 줄로 두고 가로로 흐르게 한다.
+ *
+ * 7차부터 이 UI 는 **편집 모드가 아니라 표시 상태 그 자체**다 — 알약과 입력칸이 늘 떠 있다.
+ */
+.bases-plus-cell .bases-plus-chips,
+.bases-plus-cell .bases-plus-cell-multi {
+	display: flex;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: var(--size-2-2);
+	width: 100%;
+	/* 코어의 min-height 는 --input-height(30px)라 셀 안쪽 높이(행 30 − 여백 8)를 넘는다. */
+	min-height: 0;
+	overflow-x: auto;
+	/* 가로로 흐를 때 스크롤바가 행 높이를 먹지 않게 한다. */
+	scrollbar-width: none;
+
+	/*
+	 * **코어가 이 클래스를 폼 필드로 칠한다** — `.multi-select-container` 는 `textarea, input[type=...]` 과
+	 * 같은 묶음에 들어 있어 배경·테두리·둥근 모서리·여백을 받는다(app.css:8177-8191). 그대로 두면 셀 안에
+	 * 회색 둥근 박스가 생기고, 그 배경이 열 구분선까지 덮어 **셀 밖으로 번진 것처럼 보인다**(8차 1번 캡처).
+	 * 6차의 "입력칸 안 원형" 과 같은 계열이라 여기서도 같은 리셋을 건다.
+	 */
+	background: transparent;
+	border: none;
+	border-radius: 0;
+	box-shadow: none;
+	padding: 0;
+	/* 셀 폭을 넘지 않는다 — 알약이 많으면 안에서 가로로 흐른다. */
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+/* 호버에도 폼 필드 배경이 돌아오면 안 된다(코어 `.multi-select-container:hover`, app.css:8200). */
+@media (hover: hover) {
+	.bases-plus-cell .bases-plus-chips:hover,
+	.bases-plus-cell .bases-plus-cell-multi:hover {
+		background: transparent;
+		border: none;
+	}
+}
+
+/*
+ * 알약 뒤에 서는 입력칸. 코어 `.multi-select-input` 은 contenteditable div 용이라(max-width: max-content)
+ * input 요소에는 맞지 않아 빌리지 않는다. 리셋 이유는 위 `.bases-plus-cell-input` 과 같다 — 코어
+ * `input[type='text']`(0,1,1)를 이겨야 자기 테두리·둥근 모서리가 사라진다.
+ */
+.bases-plus-cell .bases-plus-cell-multi-input {
+	flex: 1 1 4ch;
+	min-width: 4ch;
+	/* 상시 노출이라 값이 없을 때도 "여기에 칠 수 있다"가 읽혀야 한다. */
+	cursor: text;
+	height: 100%;
+	border: none;
+	border-radius: 0;
+	box-shadow: none;
+	background-color: transparent;
+	padding: 0;
+	font-size: inherit;
+	line-height: inherit;
+}
+
+.bases-plus-cell .bases-plus-cell-multi-input:focus,
+.bases-plus-cell .bases-plus-cell-multi-input:focus-visible {
+	box-shadow: none;
+	border: none;
+	outline: none;
+}
+
+/*
+ * 알약은 행 높이 안에 들어와야 한다 — 표 글자 크기를 물려받으면 셀을 넘긴다.
+ * 폭 상한은 코어 규칙(`max-width: calc(100% - …)`)에 맡기고 여기서는 줄어들지만 않게 한다 —
+ * 넘치면 컨테이너가 가로로 흐른다.
+ */
+/*
+ * **알약은 줄이지 않는다** — 내용이 길어도 말줄임(…)하지 않고 제 폭을 갖는다(마스터 마무리 요구:
+ * "(알약입니다) → (알약....) ... 으로 줄일 필요 없다"). 넘치면 알약이 작아지는 게 아니라 컨테이너가
+ * 가로로 흐른다(`.bases-plus-chips` 의 `overflow-x: auto`).
+ *
+ * 줄어들던 경로가 둘이었다.
+ * ① 코어 `.multi-select-pill { max-width: calc(100% - var(--size-2-3) - 1ch) }`(app.css:9201) —
+ *    알약을 컨테이너 폭에 묶는다. 한 항목이 칸을 거의 채우면 여기서 내용이 넘친다
+ * ② 우리가 6차에 넣은 `.multi-select-pill-content` 의 `overflow: hidden; text-overflow: ellipsis` —
+ *    ①로 넘친 내용을 **…로 그리던** 자리다. 마스터가 본 그림이 이것이다
+ * 둘 다 푼다. `white-space: nowrap` 은 남긴다 — 없으면 코어의 `word-break: break-word` 가 알약을
+ * 여러 줄로 접어 30px 행을 넘긴다.
+ */
+.bases-plus-cell .multi-select-pill {
+	flex: 0 0 auto;
+	max-width: none;
+	font-size: var(--font-ui-smaller);
+}
+
+.bases-plus-cell .multi-select-pill-content {
+	white-space: nowrap;
+	overflow: visible;
+	text-overflow: clip;
+}
+
+/*
+ * 숫자는 편집 중에도 우측 정렬이다 — 네이티브도 입력칸 자체에 정렬을 건다
+ * (`.bases-table-cell .metadata-input-number { text-align: right }`, app.css:15679-15683).
+ * 셀의 data-value-type 이 아니라 **입력칸 타입**으로 잡는 이유는 값이 비어 있을 때(NullValue)도
+ * 숫자 입력이면 같은 정렬이어야 하기 때문이다 — 빈 칸은 값 타입이 null 로 온다.
+ */
+.bases-plus-cell .bases-plus-cell-input[type="number"] {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 고칠 수 있는 칸이라는 것이 호버로 드러나야 한다.
+ *
+ * **불투명한 색을 쓰면 안 된다** — 행 구분선은 각 행이 자기 위쪽에 그리는 바깥 그림자라, 어떤 행의
+ * 아래 선은 실제로는 **다음 행의 그림자가 이 행의 마지막 1px 에 걸친 것**이다. 그런데 셀은 flex 항목이라
+ * inline-block 처럼 **블록 배경보다 나중에** 칠해진다(CSS 2.1 Appendix E · Flexbox §5.4) — 셀 배경이
+ * 불투명하면 그 1px 을 덮어 버린다. `--bases-table-cell-background-active` 는 `--background-primary`
+ * (불투명, app.css:2073)라 실제로 선이 지워졌다(프리뷰 픽셀 실측: 호버 열 y=60 이
+ * rgb(255,255,255), 옆 열은 rgb(228,228,228)).
+ *
+ * 반투명한 호버 색을 쓰면 선이 비쳐 보인다. 네이티브도 유일한 셀 계열 호버(열 헤더)에 반투명
+ * `--background-modifier-hover` 를 쓴다(app.css:2056).
+ */
+@media (hover: hover) {
+	/*
+	 * **편집 중인 칸은 제외한다.** `.bases-plus-cell.is-editable:hover`(0,3,0)가
+	 * `.bases-plus-cell.is-editing`(0,2,0)을 이겨서, 편집 칸 위에 마우스를 올리면 불투명한 편집 배경이
+	 * 반투명 호버 배경으로 **바뀌어** 버렸다. 여러 줄로 자란 칸에서는 그 아래 행 글자가 비쳤다
+	 * (마스터 9차 1번 — 캡처 211911 오버 시 / 211925 벗어남 정상).
+	 * 편집 칸은 이미 자기 배경·강조 테두리를 갖고 있으니 호버 신호가 따로 필요 없다.
+	 */
+	.bases-plus-cell.is-editable:not(.is-editing):hover {
+		background-color: var(--background-modifier-hover);
+	}
+
+	/*
+	 * **텍스트 커서는 글자를 치는 칸에만.** 체크박스(눌러서 뒤집음)·날짜(달력으로 고름)는 치는 자리가 아니다.
+	 * 그 칸들은 행이 주는 `var(--cursor)` 를 그대로 물려받는다 — 네이티브도 누르는 것에 그 토큰을 쓰고,
+	 * 사용자의 "포인터 커서 사용" 설정을 따른다(기본 default · 켜면 pointer, app.css:2189·18800).
+	 *
+	 * 10차에는 이 규칙이 반대였다 — 편집 가능한 칸 **전부**에 텍스트 커서를 주고 체크박스만 뺐다.
+	 * 그래서 날짜 칸이 텍스트 커서로 남아 "정리가 안 됐다" 로 보였다(프리뷰 실측으로 확인).
+	 */
+	.bases-plus-cell.is-typing:not(.is-editing):hover {
+		cursor: text;
+	}
+}
+
+/* 말줄임은 값 요소에 건다 — 부모(셀)는 flex 라 text-overflow 가 걸리지 않는다. */
+.bases-plus-value {
+	width: 100%;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/*
+ * 숫자는 우측, 체크박스는 가운데 — 네이티브 표와 같은 이름·같은 규칙이다(app.css:15678-15686).
+ * 값 요소가 셀 폭을 다 쓰므로 정렬은 셀의 justify-content 가 아니라 값 쪽 text-align 이 잡는다.
+ *
+ * **두 속성을 함께 잡는다.** `data-property-type` 은 등록된 위젯이라 값이 빈 칸에도 있고,
+ * `data-value-type` 은 그린 값의 타입이다 — `file.*`·`formula.*` 열은 등록된 위젯이 없어 값 타입만 남는다.
+ * 값 타입만 보던 때는 빈 숫자 칸이 좌측 정렬로 남았다(E5 · 명세가 지목한 결함 2번).
+ */
+.bases-plus-cell[data-property-type="number"] .bases-plus-value,
+.bases-plus-cell[data-value-type="number"] .bases-plus-value {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.bases-plus-cell[data-property-type="checkbox"] .bases-plus-value,
+.bases-plus-cell[data-value-type="boolean"] .bases-plus-value {
+	text-align: center;
+}
+
+/*
+ * 렌더가 실패했을 때만 보인다 — 원인은 콘솔에 남긴다. 이 줄이 없으면 탭에서는 그냥 빈 화면이고,
+ * 임베드에서는 코어의 코드블록 오류 토스트만 떠서 어디가 문제인지 화면에 남지 않는다.
+ */
+.bases-plus-error {
+	color: var(--text-error);
+	font-size: var(--font-ui-smaller);
+	padding: var(--size-2-3) var(--size-4-2);
+}
+
+/*
+ * 페이저 바 — 네이티브 표의 바닥 고정 줄(app.css:15511-15517)과 같은 자리·같은 배경·같은 층위다.
+ * sticky bottom 이라 표가 길어도 스크롤 끝까지 내려가지 않고 넘길 수 있다(B2).
+ *
+ * 예전 `.bases-plus-status`("Showing 3 of 10 rows.")가 있던 자리다. 그 줄은 **잘려서 못 보는 행이 있다**는
+ * 사과였는데, 페이징이 들어오면 잘린 행에 손이 닿으므로 사과할 일이 사라진다(A1).
+ */
+.bases-plus-footer {
+	position: sticky;
+	bottom: 0;
+	z-index: var(--layer-sidedock);
+	height: var(--bases-table-row-height);
+	background-color: var(--bases-table-summary-background);
+	box-shadow: inset 0 var(--bases-table-row-border-width) 0 var(--bases-table-border-color);
+}
+
+/* 아이콘 버튼의 안쪽 여백이 6px 이므로 2px 을 더해 글리프를 8px 축에 세운다(A2). */
+.bases-plus-footer-bar {
+	--bases-plus-lead: var(--size-2-1);
+}
+
+/* 그룹 페이저는 감싸는 줄(그룹 푸터)이 이미 축을 잡아 자기 여백을 갖지 않는다 — 두 번 밀지 않게. */
+.bases-plus-footer-bar,
+.bases-plus-group-pager {
+	display: flex;
+	align-items: center;
+	height: 100%;
+	gap: var(--size-2-1);
+}
+
+/*
+ * 네이티브 아이콘 버튼(app.css:7968-8002)의 선언을 옮겼다. 표 안이라 아이콘은 한 단계 작게 쓴다.
+ *
+ * **셀렉터가 2단인 이유와 `height: auto` 가 둘 다 필요하다** — 모달 액션 버튼과 같은 계열의 함정이다.
+ * ① 코어 `button:not(.clickable-icon)`(app.css:7188)의 명시도가 (0,1,1)이라 한 단짜리 클래스로는
+ *    `background-color`·`box-shadow` 를 못 이겨 채워진 버튼 배경이 그대로 남는다
+ * ② 코어 `button`(app.css:7168)이 `height: var(--input-height)` 30px 을 건다. 우리는 높이를 아예
+ *    선언하지 않았으므로 이 값이 살아남아 버튼 상자가 24px 이 아니라 30px 이 된다(프리뷰 실측)
+ */
+.bases-plus-view .bases-plus-pager-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: auto;
+	padding: var(--size-2-2) var(--size-2-3);
+	border: 0;
+	border-radius: var(--clickable-icon-radius);
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--icon-color);
+	cursor: var(--cursor, default);
+	--icon-size: var(--icon-s);
+	--icon-stroke: var(--icon-s-stroke-width);
+}
+
+@media (hover: hover) {
+	.bases-plus-view .bases-plus-pager-button:not(:disabled):hover {
+		background-color: var(--background-modifier-hover);
+		color: var(--icon-color-hover);
+	}
+}
+
+.bases-plus-view .bases-plus-pager-button:disabled {
+	color: var(--text-faint);
+	cursor: var(--cursor, default);
+	/* 코어는 비활성 버튼을 통째로 흐리게 한다(app.css:7206) — 우리는 글리프 색만으로 말한다. */
+	opacity: 1;
+}
+
+.bases-plus-view .bases-plus-pager-button:focus-visible {
+	box-shadow: 0 0 0 var(--input-border-width-focus) var(--background-modifier-border-focus);
+	outline: none;
+}
+
+/*
+ * 옵시디언이 모바일에서 아이콘 척도 자체를 다시 정의한다(app.css:18724-18727 — `--icon-l` 이 18px 에서
+ * 24px 이 된다). 네이티브 Bases 헤더가 하는 것과 같이 맞춰 버튼 박스가 28×24 에서 36×32 가 된다.
+ */
+.is-mobile .bases-plus-footer {
+	--icon-size: var(--icon-l);
+	--icon-stroke: var(--icon-l-stroke-width);
+}
+
+/* 페이지 표시. 누르면 입력칸으로 바뀐다 — 셀과 같은 편집 계약이다(B3). */
+.bases-plus-pager-page {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+	padding-inline: var(--size-2-2);
+	cursor: var(--cursor, default);
+	white-space: nowrap;
+
+	/*
+	 * **코어가 입력 요소에 칠하는 폼 필드 배경을 여기서도 꺼 둔다** — 셀 안에서 쓰는 그 방식 그대로다.
+	 * `--background-modifier-form-field` 는 라이트에서 흰색(실측 `#ffffff`)이고, 코어는 그 값을
+	 * `input[type=...]` 의 `:hover`·`:active` 에도 칠하는데 그 명시도가 (0,2,1)이라 우리 두 단짜리
+	 * 리셋(0,2,0)을 **이긴다**. 숫자를 누르는 순간 포인터가 그 위에 있으므로 사실상 늘 호버 상태다 —
+	 * 그래서 불투명한 흰 네모가 푸터의 위 선을 덮었다(마스터 1차 4번).
+	 * 상태마다 셀렉터로 싸우는 대신 변수를 꺼서 모든 상태를 한 번에 잡는다.
+	 */
+	--background-modifier-form-field: transparent;
+	--background-modifier-form-field-hover: transparent;
+	--input-border-width: 0;
+}
+
+@media (hover: hover) {
+	.bases-plus-pager-page:hover {
+		color: var(--text-normal);
+	}
+}
+
+/*
+ * 편집 중. 셀 입력칸과 같은 평면 규칙이라 튀지 않는다.
+ * 셀렉터가 2단인 이유도 같다 — 코어 `input[type='text']`(0,1,1)를 못 이기면 리셋이 통째로 죽는다.
+ */
+.bases-plus-pager-page .bases-plus-pager-input {
+	width: var(--size-4-9);
+	/*
+	 * **푸터 높이(30px)를 다 쓰면 안 된다.** 그러면 입력칸이 푸터의 위 선(inset box-shadow) 픽셀에
+	 * 그대로 걸터앉아, 배경이 조금만 불투명해도 선이 끊겨 보인다(실측: 높이 30 = 푸터 30 · 위 간격 0).
+	 * 페이저 버튼과 같은 24px 상자로 맞춰 위아래로 3px 씩 비운다 — 줄의 리듬도 버튼과 같아진다.
+	 */
+	height: calc(var(--icon-s) + var(--size-2-2) * 2);
+	border: none;
+	border-radius: var(--clickable-icon-radius);
+	box-shadow: none;
+	background-color: transparent;
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+	padding: 0;
+}
+
+/*
+ * 고치는 중이라는 것은 배경이 아니라 **테두리 링**으로 말한다(마스터 1차 4번 — "배경이 없어도 되지 않을까").
+ * 코어 `input[type='text']:focus`(0,2,1)를 이겨야 해서 셀렉터가 세 단이다.
+ */
+.bases-plus-pager-page .bases-plus-pager-input:focus,
+.bases-plus-pager-page .bases-plus-pager-input:focus-visible {
+	box-shadow: 0 0 0 var(--border-width) var(--background-modifier-border-focus);
+	border: none;
+	outline: none;
+}
+
+/*
+ * 순서 손잡이 — 마크다운 표의 행 드래그 손잡이(app.css:3724-3765)의 선언을 옮겼다.
+ * 평소에는 안 보이고 행 위에 올렸을 때 드러난다. 네이티브도 opacity 0 → 1 이다.
+ */
+.bases-plus-order-handle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: 0;
+	width: var(--bases-plus-order-gutter);
+	cursor: grab;
+	color: var(--table-drag-handle-color);
+	background-color: var(--table-drag-handle-background);
+	/* 없으면 터치로 끌 때 표가 같이 스크롤된다 — 열 폭 손잡이와 같은 이유다. */
+	touch-action: none;
+	--icon-size: var(--icon-s);
+	--icon-stroke: var(--icon-s-stroke-width);
+}
+
+/*
+ * **평소에 흐려지는 것은 상자가 아니라 글리프다.** 상자째 `opacity: 0` 으로 두면 아무것도 안 칠해져
+ * 뒤에 있는 행 구분선이 여백 열을 가로질러 비친다 — 왼쪽 끝에 선 조각이 삐져나온 것으로 보인다
+ * (마스터 2차 9번 캡처). 글리프만 감추면 상자가 그 자리를 계속 덮는다.
+ */
+.bases-plus-order-handle > svg {
+	opacity: 0;
+}
+
+/*
+ * 순서 모드가 아니면 아예 그리지 않는다. 여백 열이 0px 이라 폭도 0 이지만, 안쪽 svg 는 그 상자를 넘어
+ * 첫 열 위에 겹쳐 보인다 — 자리만 없애는 것으로는 부족하다.
+ *
+ * **행과 그룹은 옵션이 따로다**(마스터 추가 요구 2026-08-08). 한쪽만 켜면 여백 열은 생기되
+ * 그쪽 손잡이만 드러난다 — 축이 갈라지지 않게 열은 늘 함께 밀린다.
+ */
+.bases-plus-view:not(.is-ordering) .bases-plus-order-handle,
+.bases-plus-view:not(.is-row-ordering) .bases-plus-row > .bases-plus-order-handle,
+.bases-plus-view:not(.is-group-ordering) .bases-plus-group-heading > .bases-plus-order-handle {
+	display: none;
+}
+
+/* 그룹 사이 띠(위 10px)까지 손잡이가 덮으면 헤딩 줄과 어긋나 보인다 — 보이는 줄에만 맞춘다. */
+.bases-plus-group-heading > .bases-plus-order-handle {
+	inset-block-start: var(--bases-table-group-gap);
+}
+
+@media (hover: hover) {
+	.bases-plus-row:hover > .bases-plus-order-handle > svg,
+	.bases-plus-group-heading:hover > .bases-plus-order-handle > svg,
+	.bases-plus-value-order-item:hover > .bases-plus-order-handle > svg {
+		opacity: 1;
+	}
+}
+
+.bases-plus-order-handle:focus-visible > svg,
+.bases-plus-order-handle.is-active > svg {
+	opacity: 1;
+}
+
+.bases-plus-order-handle.is-active {
+	cursor: grabbing;
+	color: var(--table-drag-handle-color-active);
+	background-color: var(--table-drag-handle-background-active);
+}
+
+/*
+ * 잡힌 행. 네이티브 나무 항목처럼 강조색으로 칠하지 않는다 — 표에서는 행 하나가 통째로 물드는 것이 너무 세다.
+ * 반투명이라 아래 구분선이 비쳐 보인다(셀 호버와 같은 이유 — 아래 호버 절 참조).
+ */
+.bases-plus-row.is-being-dragged,
+.bases-plus-group-heading.is-being-dragged,
+.bases-plus-value-order-item.is-being-dragged {
+	background-color: var(--background-modifier-hover);
+}
+
+/*
+ * 드롭 자리. 코어 드롭 표시자(app.css:10468-10478)의 선언을 옮기고 두께만 표 드래그 토큰으로 잡았다.
+ * 감싸는 요소가 `position: relative` 라야 그 안에서 좌표를 잡는다(`.bases-plus-rows`·값 순서 목록).
+ */
+.bases-plus-drop-indicator {
+	position: absolute;
+	inset-inline: 0;
+	height: 0;
+	border: var(--table-drop-indicator-half-width) solid var(--interactive-accent);
+	border-radius: 2px;
+	pointer-events: none;
+	z-index: 2;
+}
+
+.bases-plus-drop-indicator:not(.is-active) {
+	display: none;
+}
+
+/*
+ * 값 목록 — 표에서 온 화면이라 표의 줄 높이·축을 그대로 쓴다(F3).
+ *
+ * 아래 여백은 장식이 아니다. **이 목록은 스스로 스크롤 컨테이너**라(표의 행 컨테이너는 아니다 — 거기서는
+ * 코어 `.bases-view` 가 스크롤을 맡는다), 마지막 자리에 드롭 표시자가 서면 그 4px 띠가 내용 아래로 넘쳐
+ * 두 줄짜리 대화상자에도 스크롤바가 뜬다(프리뷰 실측: 표시자를 끝에 세우면 세로 스크롤바 출현).
+ * 표시자 두께만큼 자리를 미리 비워 그 상태를 없앤다.
+ */
+.bases-plus-value-order-list {
+	position: relative;
+	overflow-y: auto;
+	padding-block-end: calc(var(--table-drop-indicator-half-width) * 2);
+}
+
+.bases-plus-value-order-item {
+	--bases-plus-order-gutter: var(--table-drag-handle-size, var(--size-4-4));
+	--bases-plus-lead: var(--size-4-2);
+
+	display: flex;
+	align-items: center;
+	position: relative;
+	height: var(--bases-table-row-height);
+	padding-inline-start: calc(var(--bases-plus-order-gutter) + var(--bases-plus-lead));
+	font-size: var(--bases-table-font-size);
+}
+
+/*
+ * 항목이 하나뿐이면 순서를 정할 것이 없다 — 손잡이를 감춘다(코어 모바일 옵션 목록도 같은 처리를 한다,
+ * app.css:19781).
+ *
+ * **코어가 쓰는 `:first-of-type:last-of-type` 은 여기서 쓸 수 없다.** 이 목록에는 항목 말고
+ * 드롭 표시자 div 가 함께 들어 있어 항목이 하나여도 그 짝이 성립하지 않는다 — 규칙이 조용히 죽는다.
+ * 갯수는 목록 요소가 클래스로 말한다.
+ */
+.bases-plus-value-order-list.is-single .bases-plus-order-handle {
+	display: none;
+}
+
+/* 빈 화면은 사과가 아니라 안내다. */
+.bases-plus-value-order-empty {
+	padding: var(--size-4-3) var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/* 값 목록이 길어져도 대화상자가 화면을 넘지 않게 한다 — 목록만 스크롤된다. */
+.modal.bases-plus-value-order-modal {
+	width: auto;
+	min-width: 320px;
+	max-height: var(--modal-max-height);
+}
+
+/*
+ * 모달 껍데기 — 헤더 한 줄. 제목·액션·닫기가 같은 행, 같은 오른쪽 축(12px)에 선다.
+ *
+ * **노트 모달과 값 순서 대화상자가 같은 껍데기를 쓴다**(`.bases-plus-modal`). 크기만 각자 정한다 —
+ * 노트 모달은 편집기를 담아 화면을 채우고, 값 순서는 목록 길이에 맞춘다.
+ */
+.modal.bases-plus-modal {
+	/* X 박스 = 아이콘 + 좌우 패딩. 코어가 --lightbox-close-size 를 쓰는 산식과 같다(app.css:8550). */
+	--bases-plus-modal-close-size: calc(var(--icon-m) + var(--size-2-2) * 2);
+	/* 헤더의 좌우 축. X 도 이 축에 선다. */
+	--bases-plus-modal-inset: var(--size-4-3);
+
+	padding: 0;
+	overflow: hidden;
+}
+
+.modal.bases-plus-note-modal {
+	width: var(--modal-width);
+	height: var(--modal-height);
+	max-width: var(--modal-max-width);
+	max-height: var(--modal-max-height);
+}
+
+.bases-plus-modal .modal-content {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+/*
+ * 코어 `.modal-header` 는 쓰지 않는다 — 제목이 `.modal-content` 바깥이라 액션과 한 줄이 될 수 없고,
+ * 비워 두면 `margin-bottom: 0.75em`(15px 기준 11.25px)만 남아 액션 줄을 그만큼 내려앉힌다(app.css:9000).
+ */
+.bases-plus-modal .modal-header {
+	display: none;
+}
+
+/*
+ * 닫기 X 는 코어가 `.modal` 직속으로 그리는 절대 배치 요소라 우리 헤더 안에 넣을 수 없다.
+ * 대신 헤더 행의 마지막 자리에 앉힌다 — 세로는 행 중앙, 가로는 헤더와 같은 축.
+ * 플러그인 Modal 이 만드는 것은 `.modal-header-button` 이다(app.js 오프셋 1131131).
+ * `.modal-close-button` 은 코어의 다른 모달용이지만 규칙을 공유하므로 함께 잡아 둔다.
+ */
+.bases-plus-modal .modal-header-button,
+.bases-plus-modal .modal-close-button {
+	top: calc((var(--header-height) - var(--bases-plus-modal-close-size)) / 2);
+	inset-inline-end: var(--bases-plus-modal-inset);
+}
+
+/* 리프 헤더(우리가 모달 안에서 감추는 그 요소)와 같은 치수를 쓴다 — app.css:4297. */
+.bases-plus-modal-header {
+	display: flex;
+	align-items: center;
+	flex: 0 0 auto;
+	gap: var(--size-4-2);
+	height: var(--header-height);
+	padding-inline-start: var(--bases-plus-modal-inset);
+	/* X 자리를 비워 둔다. 축(12) + X 박스(26) + 간격(8). */
+	padding-inline-end: calc(
+		var(--bases-plus-modal-inset) + var(--bases-plus-modal-close-size) + var(--size-4-2)
+	);
+	background-color: var(--file-header-background);
+	box-shadow: 0 var(--border-width) 0 var(--background-modifier-border);
+}
+
+/* 인라인 제목이 없는 대상(.base 등)에만 들어간다. 있을 때와 없을 때 행 자체는 똑같다. */
+.bases-plus-modal-title {
+	flex: 0 1 auto;
+	min-width: 0;
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-medium);
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.bases-plus-modal-actions {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	margin-inline-start: auto;
+}
+
+/*
+ * 네이티브 Bases 툴바의 아이콘+문구 컨트롤(`.text-icon-button`, app.css:8044-8103)의 선언을 옮겼다.
+ * 코어 클래스를 빌리지 않는 이유는 이름이 바뀌면 조용히 폼 버튼으로 되돌아가기 때문이다.
+ *
+ * 셀렉터가 2단인 이유 — 코어 `button:not(.clickable-icon)`(app.css:7188)의 명시도가 (0,1,1)이라
+ * 한 단짜리 클래스로는 background-color·box-shadow 를 못 이긴다.
+ */
+.bases-plus-modal .bases-plus-modal-action {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	height: auto;
+	padding: var(--size-2-2);
+	border: 0;
+	border-radius: var(--button-radius);
+	font-size: var(--font-ui-small);
+	font-weight: var(--input-font-weight);
+	color: var(--text-muted);
+	background-color: transparent;
+	box-shadow: none;
+	white-space: nowrap;
+	overflow: hidden;
+	cursor: var(--cursor, default);
+}
+
+@media (hover: hover) {
+	.bases-plus-modal .bases-plus-modal-action:hover {
+		background-color: var(--background-modifier-hover);
+		color: var(--text-normal);
+	}
+}
+
+.bases-plus-modal .bases-plus-modal-action:focus-visible {
+	box-shadow: 0 0 0 var(--input-border-width-focus) var(--background-modifier-border-focus);
+	outline: none;
+}
+
+.bases-plus-modal-action-icon {
+	display: flex;
+	align-items: center;
+	--icon-size: var(--icon-s);
+	--icon-stroke: var(--icon-s-stroke-width);
+}
+
+/* 안내 문구는 헤더 아래 별도 띠. 왼쪽 축은 헤더와 같다. */
+.bases-plus-modal-notice {
+	flex: 0 0 auto;
+	padding: var(--size-2-3) var(--bases-plus-modal-inset);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	box-shadow: 0 var(--border-width) 0 var(--background-modifier-border);
+}
+
+.bases-plus-modal-leaf {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.bases-plus-modal-leaf > .workspace-leaf-content {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+/* 모달이 이미 제목을 보여준다 — 분리된 leaf 의 뷰 헤더는 탭 문맥이 없어 중복이다. */
+.bases-plus-modal-leaf .view-header {
+	display: none;
+}
+
+/*
+ * 네이티브는 .view-content 높이를 calc(100% - var(--header-height)) 로 잡는다(app.css:4400).
+ * 헤더를 감추면 그 40px 이 빈칸으로 남으므로 여기서 되돌린다.
+ * 셀렉터를 3단으로 쓴 이유는 같은 명시도(0,2,0)의 네이티브 규칙과 로드 순서로 다투지 않기 위해서다.
+ */
+.bases-plus-modal-leaf .workspace-leaf-content .view-content {
+	height: 100%;
+}
+
+/* ==========================================================================
+ * 타임라인 — **새로 그리는 것은 오른쪽 절반뿐이다.** 왼쪽 판은 위의 표 선언을 그대로 쓰고,
+ * 여기서는 두 판을 한 줄로 묶는 규칙·축·막대·오늘 틴트만 더한다(디자인 결론).
+ * ========================================================================== */
+
+/*
+ * 임베드 바깥 테두리는 뷰 종류마다 켜는 것이지 자동이 아니다 — 표와 같은 선언을 이 종류에도 건다.
+ * 타임라인은 내용 높이로 자라는 뷰라 임베드에서 잘리지 않고, 가로로만 넓어진다(A4).
+ */
+.bases-view[data-view-type="bases-plus-timeline"] {
+	--bases-view-padding: 0;
+	--bases-embed-border-width: var(--border-width);
+}
+
+/*
+ * 색표는 **옵시디언 8색 팔레트**다. 우리가 색을 만들지 않는다 — 테마가 이 변수들을 다시 정의하면
+ * 막대 색도 함께 따라온다(스1 · 확정 8-2). 순서는 그래프 뷰 명세가 정한 그대로다.
+ *
+ * **모달에도 함께 건다.** 코어 모달은 `body` 직속이라 우리 뷰 바깥에 서고, 뷰에만 정의하면 대화상자의
+ * 스와치가 값을 못 찾아 배경이 통째로 비어 빈 네모만 보인다(마스터 1차 21번 — 실물에서만 나는 종류다).
+ */
+.bases-plus-view,
+.bases-plus-modal {
+	--bases-plus-series-1: var(--color-blue);
+	--bases-plus-series-2: var(--color-orange);
+	--bases-plus-series-3: var(--color-green);
+	--bases-plus-series-4: var(--color-purple);
+	--bases-plus-series-5: var(--color-red);
+	--bases-plus-series-6: var(--color-cyan);
+	--bases-plus-series-7: var(--color-pink);
+	--bases-plus-series-8: var(--color-yellow);
+}
+
+/* 가로·세로 스크롤을 한 요소가 맡는다 — 왼쪽 판과 머리가 그 안에서 sticky 로 남는다(A1·A2). */
+.bases-plus-timeline {
+	--bases-plus-tl-label-width: 320px;
+	--bases-plus-tl-unit-width: 32px;
+	--bases-plus-tl-axis-width: 0px;
+
+	overflow: auto;
+	/* 트랙이 가로로 넓어도 뷰가 그 폭을 강요하지 않는다 — 임베드에서 노트 폭을 밀어내지 않게. */
+	max-width: 100%;
+}
+
+.bases-plus-tl-content {
+	position: relative;
+	width: max-content;
+	min-width: 100%;
+}
+
+/*
+ * 머리 — 축은 줌에 따라 2~3층이 되는데 왼쪽 표의 열 이름 줄은 확정분대로 30px 이어야 한다.
+ * 그래서 위 층들은 양쪽에 함께 쌓고 **맨 아래 층만 열 이름 줄과 같은 30px** 로 둔다(A3).
+ */
+.bases-plus-view.is-timeline .bases-plus-thead {
+	height: auto;
+	align-items: stretch;
+	background-color: var(--background-primary);
+	box-shadow: none;
+}
+
+/* 왼쪽 위 빈칸. 그 위는 비운다 — 채우면 축의 층과 헷갈린다(A3). */
+.bases-plus-tl-corner {
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	position: sticky;
+	inset-inline-start: 0;
+	z-index: var(--layer-cover);
+	/* 머리에는 손잡이가 없다 — 코너가 여백 열 자리까지 함께 덮어 본문과 축이 맞는다. */
+	flex: 0 0 calc(var(--bases-plus-tl-label-width) + var(--bases-plus-order-gutter));
+	width: calc(var(--bases-plus-tl-label-width) + var(--bases-plus-order-gutter));
+	padding-inline-start: calc(var(--bases-plus-order-gutter) + 12px);
+	box-sizing: border-box;
+	overflow: hidden;
+	background-color: var(--bases-table-header-background);
+}
+
+.bases-plus-tl-corner-cols {
+	display: flex;
+	height: var(--bases-table-row-height);
+	box-shadow: inset 0 calc(var(--bases-table-row-border-width) * -1) 0 var(--bases-table-border-color);
+}
+
+.bases-plus-tl-axis {
+	position: relative;
+	flex: 0 0 var(--bases-plus-tl-axis-width);
+	width: var(--bases-plus-tl-axis-width);
+	background-color: var(--bases-table-header-background);
+}
+
+/* 층 높이 22px 은 tm-timeline 값 그대로다. 맨 아래 층만 30px(B1·A3). */
+.bases-plus-tl-tier {
+	position: relative;
+	height: 22px;
+	box-shadow: inset 0 calc(var(--bases-table-row-border-width) * -1) 0 var(--bases-table-border-color);
+}
+
+.bases-plus-tl-tier.is-last {
+	height: var(--bases-table-row-height);
+}
+
+.bases-plus-tl-seg {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	top: 0;
+	height: 100%;
+	overflow: visible;
+	white-space: nowrap;
+	box-shadow: calc(var(--bases-table-column-border-width) * -1) 0 0 var(--bases-table-border-color);
+}
+
+.bases-plus-tl-seg-label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/*
+ * 위 층(년·분기·월)의 글자는 칸 **왼쪽**에 붙고 가로 스크롤에도 그 자리에 남는다 — 그룹 헤딩 글자와
+ * 같은 처리다(E1). 눈금 층은 칸이 32px 이라 가운데 그대로 두고 이 규칙에서 뺀다.
+ *
+ * **가운데 정렬과 `sticky` 는 함께 못 쓴다.** `sticky` 는 지정한 변으로 끌어당기지 않고 그 선을 넘지
+ * 못하게만 막는다 — 가운데에 선 글자는 왼쪽으로 당겨지지 않는다(스크롤 400 실측: 글자 left 1954,
+ * 화면 폭 883 으로 화면 밖). 그래서 여러 달을 덮는 년 칸의 글자가 빈 띠로 보였다.
+ */
+.bases-plus-tl-tier:not(.is-last) .bases-plus-tl-seg {
+	justify-content: flex-start;
+}
+
+/*
+ * 붙는 자리에 **코너가 덮는 폭 전체**를 더한다. 이 층의 스크롤 기준은 뷰 전체라, 8px 만 주면 글자가
+ * 왼쪽 위 빈칸 뒤로 들어가 가려진다(실측: left 9 — 코너가 1~321 을 덮는다).
+ * 수동 순서를 켜면 코너가 여백 열만큼 더 넓어지므로 그 값도 함께 더한다(안 더하면 글자가 8px 잘린다).
+ * 그룹 헤딩 글자는 판이 없는 줄이라 이 보정이 필요 없다(E1 선언 그대로).
+ */
+.bases-plus-tl-tier:not(.is-last) .bases-plus-tl-seg-label {
+	position: sticky;
+	inset-inline-start: calc(
+		var(--bases-plus-tl-label-width) + var(--bases-plus-order-gutter) + var(--size-4-2)
+	);
+}
+
+/* 배경만으로는 축에서 어느 칸인지 덜 읽힌다 — 그 날짜 글자를 함께 올린다(B3). */
+.bases-plus-tl-seg-label.is-today {
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+/*
+ * 판 경계 폭 조절 — 확정분 열 폭 손잡이(`.bases-plus-th-resizer`)와 같은 두께·커서·활성색이다(D2).
+ * 층위가 한 단 위인 이유는 코너가 이미 `--layer-cover` 라 그 안에서 위에 서야 하기 때문이다.
+ */
+.bases-plus-tl-divider {
+	position: absolute;
+	inset-block: 0;
+	inset-inline-end: 0;
+	width: 6px;
+	cursor: col-resize;
+	z-index: calc(var(--layer-cover) + 1);
+	touch-action: none;
+}
+
+.bases-plus-tl-divider.is-active {
+	background-color: var(--color-accent);
+}
+
+@media (hover: hover) {
+	.bases-plus-tl-divider:hover {
+		background-color: var(--divider-color-hover);
+	}
+}
+
+/*
+ * 한 행은 두 영역에서 한 줄이다 — 왼쪽 판과 트랙이 같은 요소의 두 부분이라 높이·경계선이 함께 움직인다.
+ * 행 높이는 표와 같은 30px 이다(확정 1) — 두 뷰를 오갈 때 리듬이 바뀌지 않는다.
+ */
+.bases-plus-view.is-timeline .bases-plus-row {
+	align-items: stretch;
+}
+
+/*
+ * 수동 순서 여백 열 — **표에서는 줄의 왼쪽 여백이지만 타임라인에서는 고정 칸이어야 한다.**
+ * 여백으로 두면 가로로 스크롤할 때 그 16px 만 흘러 나가 손잡이가 사라지고, 왼쪽 판 왼쪽에 선 없는
+ * 틈이 생겨 표가 끊어져 보인다(마스터 1차 31번 캡처).
+ *
+ * 그래서 줄의 여백을 0 으로 되돌리고 **손잡이 자신을 흐름 안 `sticky` 항목**으로 바꿔 그 자리를 차지하게
+ * 한다. 왼쪽 판은 그만큼 안쪽에 붙어 둘이 나란히 고정된다 — 스크롤해도 둘 다 남는다.
+ */
+.bases-plus-view.is-timeline .bases-plus-row,
+.bases-plus-view.is-timeline .bases-plus-thead,
+.bases-plus-view.is-timeline .bases-plus-group-heading {
+	padding-inline-start: 0;
+}
+
+.bases-plus-view.is-timeline .bases-plus-row > .bases-plus-order-handle,
+.bases-plus-view.is-timeline .bases-plus-group-heading > .bases-plus-order-handle {
+	position: sticky;
+	inset-inline-start: 0;
+	inset-block: auto;
+	order: -1;
+	flex: 0 0 var(--bases-plus-order-gutter);
+	align-self: stretch;
+	/* 왼쪽 판(2)보다 위에 서야 판이 흘러와도 손잡이가 가려지지 않는다. */
+	z-index: 3;
+	/* 줄 배경을 그대로 이어받아 뒤의 행 구분선을 덮는다(2차 9번). */
+	background-color: var(--background-primary);
+}
+
+/*
+ * 여백 열이 **비어 있는 경우**를 막는다. 그룹 순서만 켜면 행에는 손잡이가 안 그려지는데(표와 같은 규칙),
+ * 그래도 왼쪽 판은 여백 열만큼 안쪽에 붙으므로 그 16px 이 아무것도 안 덮는 띠로 남아 **트랙의 막대와 격자가
+ * 판 왼쪽 바깥으로 비친다**(마스터 5차 요청 캡처 230258 — 임베드에서 눈에 띄었다).
+ * 손잡이가 없을 때만 같은 자리에 불투명한 자리채움을 세운다.
+ */
+.bases-plus-view.is-timeline.is-ordering:not(.is-row-ordering) .bases-plus-row::before {
+	content: "";
+	position: sticky;
+	inset-inline-start: 0;
+	order: -2;
+	flex: 0 0 var(--bases-plus-order-gutter);
+	align-self: stretch;
+	z-index: 3;
+	background-color: var(--background-primary);
+}
+
+/* 헤딩은 위 10px 이 그룹 사이 띠다 — 손잡이는 보이는 줄에만 맞춘다(표와 같은 규칙). */
+.bases-plus-view.is-timeline .bases-plus-group-heading > .bases-plus-order-handle {
+	align-self: flex-end;
+	height: var(--bases-table-row-height);
+	/* 정박 상자와 같은 이유로 **자기 배경을 갖지 않는다** — 뒤에 늘 띠가 있다(5차 3번). */
+	background-color: transparent;
+}
+
+/*
+ * 끄는 중인 헤딩 — **띠 색을 지우지 않고 그 위에 덧칠한다.** 반투명 한 색으로 갈아 끼우면 뒤의 오늘 틴트와
+ * 격자가 그대로 비쳐, 끌고 있는 띠 안에만 색 얼룩이 생긴다(마스터 2차 요청 캡처 171754).
+ * 배경 이미지로 얹으면 불투명한 띠 위에 같은 세기의 강조가 남는다.
+ */
+.bases-plus-view.is-timeline .bases-plus-group-heading.is-being-dragged {
+	background-color: var(--bases-table-group-background);
+	background-image: linear-gradient(
+		var(--background-modifier-hover),
+		var(--background-modifier-hover)
+	);
+}
+
+/* 왼쪽 판은 가로로 스크롤해도 제자리에 남는다 — tm 과 같은 방식(A2). */
+.bases-plus-tl-label {
+	display: flex;
+	align-items: center;
+	position: sticky;
+	/* 여백 열 손잡이가 0 에 붙어 있다 — 판은 그 뒤에서 시작해야 둘이 겹치지 않는다. */
+	inset-inline-start: var(--bases-plus-order-gutter);
+	z-index: 2;
+	flex: 0 0 var(--bases-plus-tl-label-width);
+	width: var(--bases-plus-tl-label-width);
+	overflow: hidden;
+	background-color: var(--background-primary);
+	/* 연관 화살표가 이 안에서 자리를 잡는다(절대 배치) — 그래서 판을 따라 고정된다. */
+	padding-inline-start: 12px;
+	/* 여백이 폭에 얹히면 머리(코너)와 본문 열이 그만큼 어긋난다 — 둘 다 테두리 기준으로 센다. */
+	box-sizing: border-box;
+}
+
+/*
+ * 막대는 자기 상자를 넘어도 되지만 트랙 밖으로는 못 나간다 — 옆 행·왼쪽 판을 침범하지 않게(A2).
+ * 이름은 `overflow: hidden` 안에서 스크롤마다 계산으로 자리를 잡는다(확정 7-3 의 두 길 중 후자).
+ */
+.bases-plus-tl-track {
+	position: relative;
+	flex: 0 0 var(--bases-plus-tl-axis-width);
+	width: var(--bases-plus-tl-axis-width);
+	overflow: hidden;
+	/*
+	 * 눈금 격자 — 축의 칸 경계를 본문까지 잇는다. **요소가 아니라 배경**이라 눈금이 수백 개여도 DOM 이
+	 * 늘지 않는다(성2).
+	 *
+	 * **오늘 틴트와 한 선언에 겹쳐 두지 않는다.** 여러 겹으로 묶으면 어느 한 변수가 비는 순간
+	 * `background-image` 전체가 무효가 되어 **격자까지 통째로 사라진다** — 화면에서는 몇 행만 격자가
+	 * 빈 것으로 보이고 원인은 전혀 안 보인다(마스터 4차 2번의 증상이 이 모양이다). 오늘은 아래
+	 * `::before` 로 따로 그려 둘이 서로를 죽일 수 없게 했다.
+	 *
+	 * 모든 `var()` 에 폴백을 둔다 — 변수가 하나라도 비면 선언이 통째로 무효가 되는 성질을 막는다.
+	 */
+	background-image: repeating-linear-gradient(
+		to right,
+		var(--bases-table-border-color, currentColor) 0 var(--bases-table-column-border-width, 1px),
+		transparent var(--bases-table-column-border-width, 1px) var(--bases-plus-tl-unit-width, 32px)
+	);
+}
+
+/*
+ * 오늘 — **선이 아니라 그 날짜 열의 배경 틴트**다. 코어가 "지금 이것"을 칠할 때 쓰는 산식과 같다
+ * (app.css:2464). 선으로 그으면 막대와 같은 강조색이라 서로 잡아먹는다(확정 3).
+ *
+ * 트랙 안에 있으므로 **트랙이 없는 그룹 헤딩·푸터는 구조적으로 칠해질 수 없다**(3차 4·6번의 처방).
+ * 막대는 트랙의 실제 자식이라 이 가상 요소보다 뒤에 그려진다 — 오늘이 막대를 가리지 않는다.
+ */
+.bases-plus-tl-track::before {
+	content: "";
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: var(--bases-plus-tl-today-left, -9999px);
+	width: var(--bases-plus-tl-unit-width, 32px);
+	background-color: color-mix(in oklch, var(--color-accent) 15%, transparent);
+	pointer-events: none;
+}
+
+/* tm 의 막대를 옮기되 높이만 우리 행(30px)에 맞춘다 — 30 − 8 = 22px(C1). */
+.bases-plus-tl-bar {
+	position: absolute;
+	top: var(--size-4-1);
+	height: calc(var(--bases-table-row-height) - var(--size-4-2));
+	border-radius: var(--radius-s);
+	background-color: var(--interactive-accent);
+	cursor: grab;
+	/* 이름이 막대를 넘어 밖에 설 수 있어야 한다 — 트랙이 최종 경계다(C1). */
+	overflow: visible;
+	box-sizing: border-box;
+}
+
+/*
+ * 색을 켠 막대 — **콜아웃의 산식**이다(app.css:11290). 22px 막대라 10% 대신 20% 를 쓰고
+ * 왼쪽 3px 띠로 막대의 무게를 남긴다(확정 8-1 A).
+ *
+ * 섞는 상대가 `transparent` 가 아니라 배경색인 것이 핵심이다 — 반투명으로 두면 격자선과 오늘 틴트가
+ * 막대를 통과해 비쳐, 같은 상태의 막대가 오늘 열 위에서만 다른 색이 된다.
+ */
+.bases-plus-tl-bar.is-tinted {
+	background-color: color-mix(in oklch, var(--bases-plus-tl-color) 20%, var(--background-primary));
+	box-shadow: inset 3px 0 0 var(--bases-plus-tl-color);
+}
+
+.bases-plus-tl-bar.is-dragging {
+	opacity: 0.7;
+	cursor: grabbing;
+}
+
+/*
+ * 점 항목 — 시작만 있거나 시작=종료. 1일짜리 막대로 그리지 않는 이유는 배율이 년이면 1일이 1px 미만이라
+ * **사라지기** 때문이다. 다이아몬드는 어느 배율에서도 같은 크기로 남는다(C4).
+ */
+.bases-plus-tl-point {
+	position: absolute;
+	top: 50%;
+	width: 12px;
+	height: 12px;
+	margin-top: -6px;
+	border-radius: 2px;
+	background-color: var(--interactive-accent);
+	transform: rotate(45deg);
+	cursor: grab;
+}
+
+.bases-plus-tl-point.is-tinted {
+	background-color: var(--bases-plus-tl-color);
+}
+
+/*
+ * 이름 — 자리가 **하나뿐**이다. 막대 왼쪽(보이는 구간 기준)에서 시작해 넘치면 오른쪽으로 흘러나오고
+ * 화면 오른쪽 끝에서 잘린다(확정 7-4). 이름을 두 자리에 그리지 않는 것이 이 규칙의 요점이다.
+ *
+ * 글자색은 막대의 오른쪽 끝을 경계로 갈린다(㉠). **글자를 두 번 그리는 것이 아니라** 그라디언트를
+ * 글자 모양으로 잘라(`background-clip: text`) 한 요소·한 문자열로 두 색을 낸다.
+ */
+.bases-plus-tl-bar-label {
+	position: absolute;
+	top: 0;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
+	pointer-events: none;
+	z-index: 1;
+	background-image: linear-gradient(
+		to right,
+		var(--text-on-accent) 0,
+		var(--text-on-accent) var(--bases-plus-tl-ink, 0px),
+		var(--text-normal) var(--bases-plus-tl-ink, 0px)
+	);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+/*
+ * 색을 켠 막대와 점 항목은 경계에서 색이 갈리지 않는다 — 채움이 옅거나(확정 8) 아예 막대가 없어
+ * 글자가 처음부터 본문색이다(7-1 마지막 줄).
+ */
+.bases-plus-tl-bar-label.is-tinted,
+.bases-plus-tl-bar-label.is-point {
+	background-image: none;
+	color: var(--text-normal);
+}
+
+/*
+ * 끝단 손잡이 — 막대 양 끝 6px. 열 폭 조절 손잡이와 같은 두께·같은 커서다(C3).
+ * **이름보다 위 층에 둔다** — 이름이 손잡이를 덮으면 기간을 못 고친다(확정 7-1, 구현 시 잊기 쉬운 자리).
+ */
+.bases-plus-tl-bar-handle {
+	position: absolute;
+	inset-block: 0;
+	width: 6px;
+	cursor: col-resize;
+	touch-action: none;
+	z-index: 2;
+}
+
+.bases-plus-tl-bar-handle.mod-start {
+	inset-inline-start: 0;
+}
+
+.bases-plus-tl-bar-handle.mod-end {
+	inset-inline-end: 0;
+}
+
+/*
+ * 점 항목의 끝단 손잡이 — 다이아몬드 **바깥** 좌우에 선다(마스터 1차 요청 2번).
+ * 12px 짜리 마름모는 잡을 자리가 거의 없어 안쪽에 두면 통째 이동과 구분이 안 된다.
+ * 회전은 부모(`.bases-plus-tl-point`)에 걸려 있으므로 여기서 되돌려 세로로 세운다.
+ */
+.bases-plus-tl-point-handle {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 6px;
+	height: var(--bases-table-row-height);
+	margin: 0;
+	transform: translate(-50%, -50%) rotate(-45deg);
+	cursor: col-resize;
+	touch-action: none;
+}
+
+.bases-plus-tl-point-handle.mod-start {
+	margin-left: -11px;
+}
+
+.bases-plus-tl-point-handle.mod-end {
+	margin-left: 11px;
+}
+
+/*
+ * 항목 추가 — 그룹 헤딩 오른쪽 끝, 개수 옆. **호버 때만** 드러난다(G).
+ * 개수가 `margin-inline-start: auto` 로 오른쪽 끝을 잡으므로 이 버튼은 그 뒤에 선다.
+ */
+.bases-plus-group-add {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	padding: var(--size-2-1);
+	margin-inline-end: var(--size-2-2);
+	border-radius: var(--clickable-icon-radius);
+	color: var(--icon-color);
+	opacity: 0;
+	cursor: var(--cursor, default);
+	--icon-size: var(--icon-xs);
+	--icon-stroke: var(--icon-xs-stroke-width);
+}
+
+@media (hover: hover) {
+	/*
+	 * **자식 결합자를 쓰면 안 된다.** `+` 는 개수와 함께 정박 상자 안으로 들어가 헤딩의 손자가 됐는데
+	 * (2차 8번 수정) 이 규칙만 `>` 로 남아 조용히 죽었다 — 호버해도 영영 안 뜬다(3차 2번).
+	 * 구조가 바뀔 수 있는 자리에는 자손 결합자를 쓴다.
+	 */
+	.bases-plus-group-heading:hover .bases-plus-group-add {
+		opacity: 1;
+	}
+
+	.bases-plus-group-add:hover {
+		background-color: var(--background-modifier-hover);
+		color: var(--icon-color-hover);
+	}
+}
+
+.bases-plus-group-add:focus-visible {
+	opacity: 1;
+	box-shadow: 0 0 0 var(--input-border-width-focus) var(--background-modifier-border-focus);
+	outline: none;
+}
+
+/*
+ * 푸터의 줌·오늘 컨트롤. 페이저와 같은 줄의 **오른쪽 끝**에 붙는다 — 페이저는 왼쪽에 남아
+ * 가로 스크롤에도 보인다(B4·E).
+ */
+.bases-plus-tl-tools {
+	display: flex;
+	align-items: center;
+	position: absolute;
+	inset-inline-end: var(--size-2-1);
+	inset-block: 0;
+	gap: var(--size-2-1);
+}
+
+/* 페이저 버튼과 같은 선언이다 — 같은 성격(아이콘 하나짜리 도구)이라 같은 모습이어야 한다. */
+.bases-plus-view .bases-plus-tl-tool {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: auto;
+	padding: var(--size-2-2) var(--size-2-3);
+	border: 0;
+	border-radius: var(--clickable-icon-radius);
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--icon-color);
+	cursor: var(--cursor, default);
+	--icon-size: var(--icon-s);
+	--icon-stroke: var(--icon-s-stroke-width);
+}
+
+@media (hover: hover) {
+	.bases-plus-view .bases-plus-tl-tool:hover {
+		background-color: var(--background-modifier-hover);
+		color: var(--icon-color-hover);
+	}
+}
+
+.bases-plus-view .bases-plus-tl-tool:focus-visible {
+	box-shadow: 0 0 0 var(--input-border-width-focus) var(--background-modifier-border-focus);
+	outline: none;
+}
+
+/* 지금 배율. 숫자가 아니라 이름이라 우리 컨트롤 이름 규칙대로 영어다(확정 D3-B). */
+.bases-plus-tl-unit {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	min-width: 4em;
+	text-align: center;
+}
+
+/* 푸터가 절대 배치 도구를 담으므로 기준이 필요하다. */
+.bases-plus-view.is-timeline .bases-plus-footer {
+	position: sticky;
+}
+
+/*
+ * 가로 스크롤 때문에 달라지는 하나 — 헤딩 띠는 전체 폭을 덮되 **글자는 왼쪽에 붙어 남는다**(E1).
+ *
+ * **`overflow: hidden` 을 `clip` 으로 바꾸는 것이 이 규칙의 전제다.** `hidden` 인 요소는 스크롤 컨테이너라
+ * 그 안의 `sticky` 가 바깥 가로 스크롤을 못 따라간다 — 선언은 살아 있는데 글자가 스크롤을 따라가
+ * 아무 일도 안 일어난 것처럼 보였다(마스터 1차 27번). `clip` 은 잘라내되 스크롤 컨테이너를 만들지 않는다
+ * (확정 7-3 에서 트랙을 두고 실측한 그 성질이다).
+ */
+.bases-plus-view.is-timeline .bases-plus-group-heading {
+	overflow: clip;
+}
+
+.bases-plus-tl-group-inner {
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-4-1);
+	position: sticky;
+	/*
+	 * **여백 열 뒤에서 시작한다.** 8px 만 주면 0 에 붙어 있는 손잡이(16px)와 8px 겹쳐, 손잡이가 접기
+	 * 화살표의 왼쪽 절반을 덮는다(마스터 4차 5번 캡처). 축의 위 층 글자에 준 보정과 같은 계산이다.
+	 */
+	inset-inline-start: calc(var(--bases-plus-order-gutter) + var(--size-4-2));
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/*
+ * 흐름 순서를 명시한다 — 손잡이를 `order: -1` 로 앞으로 뺐고 글자 묶음은 DOM 상 개수 **뒤에** 만들어지므로,
+ * 순서를 안 정하면 개수(`margin-inline-start: auto`)가 글자보다 앞에 서서 배치가 뒤집힌다.
+ */
+.bases-plus-view.is-timeline .bases-plus-tl-group-inner {
+	order: 0;
+}
+
+/*
+ * 개수와 `+` 도 화면 안에 남는다. 헤딩 띠가 축 전체 폭(수천 px)을 덮으므로 그냥 두면 오른쪽 끝에 붙어
+ * 스크롤을 끝까지 밀기 전엔 안 보인다 — 글자를 왼쪽에 붙인 것과 같은 이유로 오른쪽에 붙인다(E1).
+ * **둘을 한 상자로 묶는 것이 핵심이다.** 따로 붙이면 개수만 남고 `+` 가 밖으로 밀린다(2차 8번).
+ */
+.bases-plus-tl-group-tail {
+	display: flex;
+	align-items: center;
+	position: sticky;
+	inset-inline-end: 0;
+	order: 1;
+	margin-inline-start: auto;
+	/*
+	 * **자기 배경을 갖지 않는다.** 헤딩 띠가 내용 폭 전체를 덮고 있어 어느 스크롤 위치에서도 이 상자 뒤에는
+	 * 띠가 깔려 있다 — 따로 칠할 이유가 없다.
+	 *
+	 * `inherit` 도 답이 아니었다(5차 2번). 호버 색이 **반투명**이면 띠가 한 번 칠하고 이 상자가 같은 색을
+	 * 또 칠해 **알파가 겹쳐 진해진다** — 호버해야 `+` 가 보이므로 늘 그 상태로 보였다.
+	 */
+	background-color: transparent;
+}
+
+/* 묶음 상자가 오른쪽 끝을 잡으므로 개수는 자기 여백만 지킨다. */
+.bases-plus-view.is-timeline .bases-plus-group-count {
+	margin-inline-start: 0;
+}
+
+
+
+/*
+ * 색 대화상자 — 값 순서 대화상자와 **같은 어휘**(헤더 + 값 목록)를 쓴다. 새 컴포넌트를 만들지 않는다(8-3).
+ */
+.modal.bases-plus-bar-color-modal {
+	width: auto;
+	min-width: 360px;
+	max-height: var(--modal-max-height);
+}
+
+.bases-plus-bar-color-list {
+	overflow-y: auto;
+}
+
+.bases-plus-bar-color-item {
+	display: flex;
+	align-items: center;
+	height: var(--bases-table-row-height);
+	padding-inline: var(--size-4-2);
+	font-size: var(--bases-table-font-size);
+}
+
+.bases-plus-bar-color-label {
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.bases-plus-bar-color-swatches {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	margin-inline-start: auto;
+	padding-inline-start: var(--size-4-3);
+}
+
+/*
+ * 스와치 — 코어 `button:not(.clickable-icon)`(0,1,1)을 이겨야 배경·테두리가 우리 것으로 남는다.
+ * 고른 것은 배경색과 본문색 두 겹 링으로 표시한다(어느 팔레트 색 위에서도 보이는 유일한 방법이다).
+ */
+.bases-plus-modal .bases-plus-bar-color-swatch {
+	width: 14px;
+	height: 14px;
+	padding: 0;
+	border: 0;
+	border-radius: 3px;
+	box-shadow: none;
+	cursor: var(--cursor, default);
+}
+
+.bases-plus-modal .bases-plus-bar-color-swatch.is-selected {
+	box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 3px var(--text-normal);
+}
+
+.bases-plus-bar-color-empty {
+	padding: var(--size-4-3) var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/* ==========================================================================
+ * 달력 — **새로 그리는 것은 7열 그리드와 칸 안 배치뿐이다**(디자인 결론).
+ * 항목 칩은 타임라인 막대의 색·모서리·글꼴을, 이동 버튼은 표 페이저 버튼을, 안내 띠·오류 줄은
+ * 확정분 선언을 그대로 쓴다. 여기서 새로 세우는 것은 그리드와 칸 상태(오늘·주말·달 밖·접힘)다.
+ *
+ * **그리드의 단위는 칸이 아니라 주다**(마스터 1차 16·22번). 줄이 그리드 행이라 같은 줄에 있는 것들이
+ * 같은 높이를 나눠 갖고, 여러 날 막대는 걸친 칸을 가로지르는 한 요소라 칸 경계에서 끊기지 않는다.
+ * ========================================================================== */
+
+/* 임베드 바깥 테두리는 뷰 종류마다 켜는 것이지 자동이 아니다 — 표·타임라인과 같은 선언을 건다. */
+.bases-view[data-view-type="bases-plus-calendar"] {
+	--bases-view-padding: 0;
+	--bases-embed-border-width: var(--border-width);
+}
+
+/*
+ * **스스로 높이를 만든다.** 뷰 안에 세로 스크롤을 두지 않는다 — 임베드는 `overflow: hidden` 이라
+ * 우리가 만든 스크롤이 통째로 잘린다(A4). 넘칠 때의 두 번째 처방은 안내 띠다.
+ */
+.bases-plus-calendar {
+	/* 한 주의 바닥. 월 보기는 행 높이 3줄이고, 주 보기는 줄 최소 7개가 그 자리를 대신한다. */
+	--bases-plus-cal-week-height: calc(var(--bases-table-row-height) * 3);
+	/* 항목 한 줄의 높이 — 타임라인 막대(22px)와 같은 급으로 칸에 맞춘 값이다(C1). */
+	--bases-plus-cal-item-height: var(--size-4-5);
+
+	display: flex;
+	flex-direction: column;
+}
+
+/*
+ * 머리 — 기간 이름과 그것을 바꾸는 컨트롤이 한 묶음이다(확정 1). 세로로 스크롤해도 남는다.
+ * 배경을 주는 이유는 sticky 라 아래 칸이 이 줄 밑으로 지나가기 때문이다.
+ */
+.bases-plus-cal-head {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-3);
+	position: sticky;
+	top: 0;
+	z-index: var(--layer-cover);
+	height: var(--header-height);
+	padding-inline: var(--size-4-2);
+	background-color: var(--background-primary);
+	box-shadow: 0 var(--border-width) 0 var(--bases-table-border-color);
+}
+
+/*
+ * 기간 이름은 **누를 수 있는 것**이다(년·월 선택 — 마스터 1차 요청). 코어 버튼 선언(app.css:7168·7188)이
+ * 높이 30px·배경·가운데 정렬을 걸어 두 단짜리 셀렉터로 되돌린다.
+ */
+.bases-plus-view .bases-plus-cal-period {
+	justify-content: flex-start;
+	height: auto;
+	padding: var(--size-2-1) var(--size-2-2);
+	margin-inline-start: calc(var(--size-2-2) * -1);
+	border: 0;
+	border-radius: var(--radius-s);
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-normal);
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-medium);
+	text-align: start;
+	cursor: var(--cursor, default);
+}
+
+@media (hover: hover) {
+	.bases-plus-view .bases-plus-cal-period:hover {
+		background-color: var(--background-modifier-hover);
+	}
+}
+
+.bases-plus-cal-nav {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+}
+
+/*
+ * `Today` 는 확정분 `Show all (N)` 과 같은 문구 버튼이다 — 그 선언을 그대로 받고 여백만 좁힌다
+ * (머리에서는 옆의 아이콘 버튼과 높이가 맞아야 한다).
+ */
+.bases-plus-view .bases-plus-cal-today {
+	padding: var(--size-2-1) var(--size-2-3);
+}
+
+/* 오른쪽 끝 컨트롤 묶음 — 팔레트가 감춰져도 세그먼트 자리가 흔들리지 않는다. */
+.bases-plus-cal-tools {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	margin-inline-start: auto;
+}
+
+/* 색표 버튼 — 코어 아이콘 버튼 어휘 그대로다. `Color by` 가 비면 요소 자체가 없다. */
+.bases-plus-view .bases-plus-cal-tool {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: auto;
+	padding: var(--size-2-2) var(--size-2-3);
+	border: 0;
+	border-radius: var(--clickable-icon-radius);
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--icon-color);
+	cursor: var(--cursor, default);
+	--icon-size: var(--icon-s);
+	--icon-stroke: var(--icon-s-stroke-width);
+}
+
+@media (hover: hover) {
+	.bases-plus-view .bases-plus-cal-tool:hover {
+		background-color: var(--background-modifier-hover);
+		color: var(--icon-color-hover);
+	}
+}
+
+/* 두 개짜리 세그먼트라 드롭다운을 쓰지 않는다(A2). 묶음 안 오른쪽 끝에 선다. */
+.bases-plus-cal-modes {
+	display: flex;
+	gap: 2px;
+}
+
+.bases-plus-view .bases-plus-cal-mode {
+	height: auto;
+	padding: 2px var(--size-2-3);
+	border: 0;
+	border-radius: var(--radius-s);
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	cursor: var(--cursor, default);
+}
+
+.bases-plus-view .bases-plus-cal-mode.is-active {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+@media (hover: hover) {
+	.bases-plus-view .bases-plus-cal-mode:not(.is-active):hover {
+		color: var(--text-normal);
+	}
+}
+
+/* 요일 머리는 머리 줄 **아래**에 붙어 함께 남는다 — 둘 다 0 에 두면 겹친다. */
+.bases-plus-cal-weekdays {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	position: sticky;
+	top: var(--header-height);
+	z-index: var(--layer-cover);
+	background-color: var(--background-primary);
+	box-shadow: 0 var(--border-width) 0 var(--bases-table-border-color);
+}
+
+.bases-plus-cal-weekday {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: var(--bases-table-row-height);
+	color: var(--bases-table-header-color);
+	font-size: var(--bases-table-font-size);
+}
+
+/*
+ * 격자선을 `gap` + 배경으로 만든다. 칸마다 테두리를 주면 인접한 선이 겹쳐 2px 로 보인다(A3).
+ * 가로선은 주 사이 `gap`, 세로선은 주 **안**의 `column-gap` 이 만든다 — 줄 사이(row-gap)에는
+ * 선이 들어가면 안 되므로 두 축을 따로 준다.
+ */
+.bases-plus-cal-grid {
+	display: flex;
+	flex-direction: column;
+	gap: var(--bases-table-row-border-width);
+	background-color: var(--bases-table-border-color);
+}
+
+.bases-plus-cal-week {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	column-gap: var(--bases-table-row-border-width);
+	row-gap: var(--size-2-1);
+	/*
+	 * **줄은 위에서부터 쌓인다.** `min-height` 로 생긴 여유 높이를 기본값(`stretch`)대로 두면 그 여유가
+	 * 첫 `auto` 행(날짜 줄)으로 들어가 항목이 칸 아래쪽으로 밀린다 — 캡처에서만 보이는 종류다.
+	 */
+	align-content: start;
+	min-height: var(--bases-plus-cal-week-height);
+}
+
+/* 주 보기는 한 줄뿐이라 그 줄이 화면을 채운다 — 줄 최소 7개가 깊이를 만든다(마스터 1차 요청). */
+.bases-plus-calendar.is-week .bases-plus-cal-week {
+	min-height: 0;
+}
+
+/*
+ * 날짜 칸은 **배경만 진다.** 항목은 주의 자식이라 이 요소 위에 얹힌다 — 그래야 여러 날 막대가
+ * 칸 경계를 가로지를 수 있다. 줄 전체를 덮으려고 `grid-row: 1 / -1` 을 쓰므로 주의 행은
+ * 명시적으로 세워져 있어야 한다(뷰가 인라인으로 세운다).
+ */
+.bases-plus-cal-day {
+	background-color: var(--background-primary);
+}
+
+/* 오늘 — **타임라인에서 확정된 그 산식 그대로다.** 두 뷰의 "오늘"이 다르게 보이면 안 된다(B1). */
+.bases-plus-cal-day.is-today {
+	background-color: color-mix(in oklch, var(--color-accent) 15%, transparent);
+}
+
+.bases-plus-cal-day.is-outside {
+	background-color: var(--background-primary-alt);
+}
+
+/* 주말 — 이번 달 밖 칸과 **같은 토큰**을 쓴다. 색을 새로 만들지 않는다(확정 5). */
+.bases-plus-cal-day.is-weekend {
+	background-color: var(--background-primary-alt);
+}
+
+/*
+ * 주말이면서 오늘이면 오늘이 이긴다. 두 배경을 섞지 않는다 — 섞으면 그날만 다른 색이 되어
+ * "오늘"도 "주말"도 아닌 세 번째 상태로 읽힌다. 셀렉터를 2단으로 쓴 이유는 같은 명시도의 위 규칙과
+ * 순서로 다투지 않기 위해서다(B1).
+ */
+.bases-plus-cal-day.is-weekend.is-today,
+.bases-plus-cal-day.is-outside.is-today {
+	background-color: color-mix(in oklch, var(--color-accent) 15%, transparent);
+}
+
+/* 날짜 숫자와 추가 버튼이 한 줄이다 — `+` 는 **항목이 있든 없든** 같은 자리에 있다(1차 19번). */
+.bases-plus-cal-dayhead {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-2-1);
+	padding: var(--size-2-2) var(--size-2-2) 0;
+}
+
+.bases-plus-cal-daynum {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/*
+ * 배경 칸과 날짜 줄은 형제라 CSS 로 서로를 볼 수 없다(`:has()` 로 엮으면 규칙이 열 위치에 얽힌다).
+ * 그래서 **뷰가 두 요소에 같은 표식을 붙인다** — 여기서는 붙은 표식만 읽는다.
+ */
+.bases-plus-cal-dayhead.is-outside .bases-plus-cal-daynum {
+	color: var(--text-faint);
+}
+
+.bases-plus-cal-dayhead.is-today .bases-plus-cal-daynum {
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+/* `+` 는 평시에 없고 그 칸에 호버해야 옅게 드러난다(B1 · 1차 19번). */
+.bases-plus-view .bases-plus-cal-add {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: auto;
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-s);
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-faint);
+	opacity: 0;
+	cursor: var(--cursor, default);
+	--icon-size: var(--icon-xs);
+	--icon-stroke: var(--icon-xs-stroke-width);
+}
+
+@media (hover: hover) {
+	.bases-plus-cal-dayhead:hover .bases-plus-cal-add,
+	.bases-plus-view .bases-plus-cal-add:focus-visible {
+		opacity: 1;
+	}
+
+	.bases-plus-view .bases-plus-cal-add:hover {
+		background-color: var(--background-modifier-hover);
+		color: var(--text-normal);
+	}
+}
+
+/* 줄 하나의 자리. 여러 날이면 걸친 칸을 가로지르는 **한 요소**다. */
+.bases-plus-cal-slot {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	margin-inline: var(--size-2-2);
+}
+
+/*
+ * 항목 칩 — 타임라인 막대의 색·모서리·글꼴을 쓰되 **약간 투명하다**(마스터 1차 요청).
+ * 속성을 켜면 이름 아래로 목록이 붙어 카드처럼 자란다.
+ */
+/*
+ * **기본은 배경이 거의 없다**(마스터 2차 8번 — "너무 강조된 느낌 · 기본값도 배경색이 거의 없었으면").
+ * 글자는 본문색이고 바탕은 자리만 알려 주는 정도다. 색은 `Color by` 를 켤 때 들어온다.
+ */
+.bases-plus-cal-item {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	/*
+	 * **같은 줄이면 같은 높이다**(마스터 1차 16·22번). 줄 높이는 그리드 행이 정하고, 칩은 그 높이를
+	 * 채운다 — 안 채우면 옆 칸의 큰 칩 아래로 빈자리가 남아 "같은 라인"으로 안 읽힌다.
+	 */
+	flex: 1 1 auto;
+	position: relative;
+	min-height: var(--bases-plus-cal-item-height);
+	padding: 1px var(--size-2-2);
+	border-radius: var(--radius-s);
+	background-color: color-mix(in oklch, var(--color-accent) 8%, transparent);
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	overflow: hidden;
+	cursor: var(--cursor, default);
+}
+
+/*
+ * 색을 켠 칩 — **타임라인 막대의 산식 그대로다**(확정 8-1). 섞는 상대가 `transparent` 가 아니라
+ * 배경색인 것이 핵심이다: 반투명이면 오늘 틴트가 칩을 통과해 비쳐 같은 값의 칩이 오늘 칸에서만 달라진다.
+ */
+.bases-plus-cal-item.is-tinted {
+	background-color: color-mix(in oklch, var(--bases-plus-cal-color) 20%, var(--background-primary));
+}
+
+/* 왼쪽 3px 띠는 **기간이 실제로 시작하는 조각에만** — 주 경계에서 잘린 쪽은 그 시작이 아니다. */
+.bases-plus-cal-item.is-band {
+	box-shadow: inset 3px 0 0 var(--bases-plus-cal-color);
+}
+
+/* 호버하면 **같은 항목의 조각이 전부** 물든다 — 주를 넘긴 조각까지 같은 대상임이 드러난다(1차 요청). */
+.bases-plus-cal-slot.is-hovered .bases-plus-cal-item {
+	background-color: var(--background-modifier-hover);
+}
+
+.bases-plus-cal-slot.is-hovered .bases-plus-cal-item.is-tinted {
+	background-color: color-mix(in oklch, var(--bases-plus-cal-color) 35%, var(--background-primary));
+}
+
+.bases-plus-cal-item.is-dragging {
+	opacity: 0.7;
+}
+
+/*
+ * 기간 끝단 손잡이 — 타임라인 막대의 그것과 같은 두께·같은 커서다(확정 5). 이름 위 층에 둬야
+ * 긴 이름이 손잡이를 덮지 않는다.
+ */
+.bases-plus-cal-handle {
+	position: absolute;
+	inset-block: 0;
+	width: 6px;
+	z-index: 1;
+	cursor: ew-resize;
+}
+
+.bases-plus-cal-handle.mod-start {
+	inset-inline-start: 0;
+}
+
+.bases-plus-cal-handle.mod-end {
+	inset-inline-end: 0;
+}
+
+@media (hover: hover) {
+	.bases-plus-cal-handle:hover {
+		background-color: color-mix(in oklch, var(--text-normal) 20%, transparent);
+	}
+}
+
+.bases-plus-cal-slot.is-hovered .bases-plus-cal-task {
+	background-color: var(--background-modifier-hover);
+	border-radius: var(--radius-s);
+}
+
+.bases-plus-cal-item-head {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	min-height: calc(var(--bases-plus-cal-item-height) - 2px);
+}
+
+/*
+ * 이름은 **안쪽 상자가** 자른다. 칩 자신에 `text-overflow` 를 걸면 아무 일도 안 일어난다 —
+ * 칩이 `display: flex` 라 익명 글자가 flex 항목이 되어 그 속성이 적용되지 않는다(좁은 폭 실측:
+ * 이름이 말줄임 없이 잘렸다). 태스크 줄이 멀쩡했던 이유가 글자를 span 에 담았기 때문이다.
+ */
+.bases-plus-cal-item-text {
+	/*
+	 * 이름은 **자기 크기까지만** 차지한다. `1 1 auto` 로 두면 여러 날 막대에서 이름이 폭을 다 먹어
+	 * 옆의 값 알약이 막대 끝까지 밀려난다(닷새짜리 막대에서 800px 떨어졌다).
+	 */
+	flex: 0 1 auto;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* `Wrap item text` — 켜면 이름이 여러 줄로 접히고 칸이 그만큼 높아진다(F). */
+.bases-plus-calendar.is-wrap .bases-plus-cal-item-text {
+	white-space: normal;
+}
+
+/* 주 경계에서 끊긴 쪽은 각지게 — 이어진다는 뜻이 모양에 남는다(C1). */
+.bases-plus-cal-item.is-clipped-start {
+	border-start-start-radius: 0;
+	border-end-start-radius: 0;
+}
+
+.bases-plus-cal-item.is-clipped-end {
+	border-start-end-radius: 0;
+	border-end-end-radius: 0;
+}
+
+/*
+ * 속성은 칩 **안에** "이름: 값" 한 줄씩 목록으로 선다(마스터 1차 22번 수정).
+ * 강조색 위라 이름은 한 단계 옅게 두어 값이 먼저 읽히게 한다.
+ */
+/*
+ * 속성 목록 — **두 열 그리드**라 줄마다 값이 같은 x 에서 시작한다(마스터 2차 10번 "정렬이 안 되어 있다").
+ * 흐름 배치로 두면 이름 길이가 제각각이라 값의 시작이 줄마다 어긋난다.
+ * 이름 열은 내용에 맞추되 칩 폭의 절반을 넘지 않는다 — 긴 속성명이 값을 밀어내지 않게.
+ */
+.bases-plus-cal-item-props {
+	display: grid;
+	grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+	gap: 1px var(--size-2-2);
+	/*
+	 * **이름과 값은 같은 baseline 에 선다**(3차 4번 ⓐ). 상자를 맞추는 것(`stretch`)으로는 부족하다 —
+	 * 값 쪽 글꼴이 테마에 따라 커지면 상자는 나란한데 글자가 아래로 처진다(마스터 캡처의 증상).
+	 */
+	align-items: baseline;
+	/*
+	 * **줄은 위에서부터 쌓인다**(3차 4번 ⓑ — "간격이 너무 크다"). 칩이 줄 높이를 채우느라 남는 높이가
+	 * 생기는데, 기본값(`stretch`)이면 그 여유가 각 줄에 나뉘어 들어가 15.6px 짜리 줄이 24px 이 된다(실측).
+	 */
+	align-content: start;
+	/*
+	 * 제목보다 한 단 들여 쓴다 — 제목에 딸린 목록이라는 것이 자리로 읽힌다(2차 10번 "인덴트를 좀더").
+	 * 12px 인 이유는 제목 글자가 체크박스 때문에 그만큼 오른쪽에서 시작하기 때문이다(실측) —
+	 * 이 값이면 체크박스가 없을 때도 목록이 제목보다 안쪽에 선다.
+	 */
+	padding-inline-start: var(--size-4-3);
+	padding-block-end: 1px;
+}
+
+/* 값만 보는 방식에서는 열이 하나다 — 이름 칸이 빈 자리로 남지 않게. */
+.bases-plus-cal-item-props.is-values-only {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+/* 줄은 그리드의 두 칸을 쓰는 논리 단위라 자기 상자를 갖지 않는다(`display: contents`). */
+.bases-plus-cal-item-prop {
+	display: contents;
+}
+
+/*
+ * 이름은 **값과 같은 크기**다(2차 10번 "값 정도의 크기로"). 캡처에서 이름이 커 보인 것은 값이
+ * 코어 렌더러의 작은 글꼴을 쓰는데 이름만 칩 글꼴을 그대로 받았기 때문이다 — 둘을 한 값으로 묶는다.
+ */
+.bases-plus-cal-prop-name,
+.bases-plus-cal-prop-value {
+	/*
+	 * 값에는 코어가 `padding: 4px 8px` 를 건다(`.bases-rendered-value` · app.css:14380) — 줄마다 8px 이
+	 * 더 붙어 15.6px 짜리 줄이 24px 이 됐다(3차 4번 ⓑ "간격이 너무 크다"의 실측 원인). 칸 안에서는 그
+	 * 여백이 자리를 먹기만 한다. 같은 명시도면 나중에 로드된 우리 파일이 이긴다.
+	 */
+	padding: 0;
+	font-size: var(--font-ui-smaller);
+	line-height: var(--line-height-tight);
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/*
+ * 값 안쪽까지 같은 크기로 못 박는다. 값은 코어 렌더러가 만든 마크업이라(`.value-list-element`·링크 등)
+ * 테마가 그 안에 자기 크기를 걸면 이름만 작아 보인다 — 마스터 캡처가 그 상태였다(3차 4번 ⓐ).
+ */
+.bases-plus-cal-prop-value * {
+	font-size: inherit;
+	line-height: inherit;
+}
+
+.bases-plus-cal-prop-name {
+	opacity: 0.75;
+}
+
+.bases-plus-cal-prop-name::after {
+	content: ":";
+}
+
+.bases-plus-cal-prop-empty {
+	opacity: 0.5;
+}
+
+/* 바로 고칠 수 있는 값은 누를 수 있다는 것이 커서로 드러난다(2차 10번). */
+.bases-plus-cal-item-prop.is-editable .bases-plus-cal-prop-value {
+	cursor: var(--cursor, default);
+	border-radius: var(--radius-s);
+}
+
+@media (hover: hover) {
+	.bases-plus-cal-item-prop.is-editable .bases-plus-cal-prop-value:hover {
+		background-color: color-mix(in oklch, var(--text-normal) 10%, transparent);
+	}
+}
+
+/*
+ * 속성 줄의 체크박스는 **우리 컨트롤로 그린다**(3차 4번 ⓒ·8번). 코어 값 렌더러가 내는
+ * `input.metadata-input-checkbox` 는 이 자리에서 16×0 으로 찌그러지거나(값이 안 보임) 열 폭만큼
+ * 늘어난 저대비 상자가 됐다(캡처 실측) — 제목 앞 체크박스와 같은 글리프·같은 대비로 통일한다.
+ */
+.bases-plus-view .bases-plus-cal-prop-check {
+	justify-content: flex-start;
+	height: auto;
+	padding: 0;
+	border: 0;
+	background-color: transparent;
+	box-shadow: none;
+	color: inherit;
+	font-size: inherit;
+	line-height: inherit;
+	cursor: var(--cursor, default);
+}
+
+/* 제목 앞 체크박스와 값 알약 — 최소 골격이라 글리프·글자만으로 세운다(1차 요청 ⑩). */
+.bases-plus-view .bases-plus-cal-check-box,
+.bases-plus-view .bases-plus-cal-item-pill {
+	flex: 0 0 auto;
+	height: auto;
+	padding: 0 var(--size-2-1);
+	border: 0;
+	border-radius: var(--radius-s);
+	background-color: transparent;
+	box-shadow: none;
+	color: inherit;
+	font-size: var(--font-ui-smaller);
+	cursor: var(--cursor, default);
+}
+
+.bases-plus-view .bases-plus-cal-item-pill {
+	max-width: 40%;
+	background-color: color-mix(in oklch, var(--text-normal) 12%, transparent);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+@media (hover: hover) {
+	.bases-plus-view .bases-plus-cal-check-box:hover,
+	.bases-plus-view .bases-plus-cal-item-pill:hover {
+		background-color: color-mix(in oklch, var(--text-normal) 25%, transparent);
+	}
+}
+
+/* 태스크 — 파일 칩과 달리 배경이 없다. 파일에 딸린 부가 정보라는 것이 무게로 드러난다(D2). */
+.bases-plus-cal-task {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	min-height: var(--bases-plus-cal-item-height);
+	padding-inline: var(--size-2-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
+	overflow: hidden;
+	cursor: var(--cursor, default);
+}
+
+.bases-plus-cal-task-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/*
+ * 완료·취소를 색으로 가르지 않는다 — 지나간 일이라는 점이 같고 글리프(☑/☒)가 이미 다르다(D3).
+ */
+.bases-plus-cal-task.is-done,
+.bases-plus-cal-task.is-cancelled {
+	color: var(--text-faint);
+	text-decoration: line-through;
+}
+
+/* 글리프는 취소선을 맞지 않는다 — 상태를 말하는 표식이라 지나간 것으로 그어지면 안 된다. */
+.bases-plus-cal-task.is-done .bases-plus-cal-check,
+.bases-plus-cal-task.is-cancelled .bases-plus-cal-check {
+	text-decoration: none;
+}
+
+.bases-plus-cal-check {
+	flex: 0 0 auto;
+}
+
+/*
+ * `+N` — 문구를 표의 `Show all (12)` 로 하지 않은 이유는 칸이 좁아 문구가 안 들어가서다.
+ * 누르면 그 줄이 펼쳐지고 **되접는 단추는 두지 않는다**(마스터 1차 8번 — 초기화는 기간 이동으로).
+ *
+ * **`justify-content` 가 필요하다.** 코어 버튼은 `display: flex` 라 `text-align` 이 아무 일도 하지 않고
+ * `justify-content: center` 가 글자를 칸 한가운데로 보낸다 — 선언은 살아 있는데 효과가 없는 종류라
+ * 프리뷰 실측(글자 왼쪽 55px 대 잉크 축 8px)에서만 드러났다. 항목 칩·날짜 숫자와 같은 축에 세운다.
+ */
+.bases-plus-view .bases-plus-cal-more {
+	justify-content: flex-start;
+	height: auto;
+	padding: 0 var(--size-2-2);
+	margin-inline: var(--size-2-2);
+	border: 0;
+	border-radius: var(--radius-s);
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	text-align: start;
+	cursor: var(--cursor, default);
+}
+
+@media (hover: hover) {
+	.bases-plus-view .bases-plus-cal-more:hover {
+		background-color: var(--background-modifier-hover);
+		color: var(--text-normal);
+	}
+}
+
+/*
+ * 년·월 선택 창 — 값 순서·막대 색 대화상자와 같은 껍데기를 쓰고 월 12칸만 새로 세운다.
+ */
+.bases-plus-period-nav {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--size-2-2);
+	width: 100%;
+}
+
+.bases-plus-period-year {
+	min-width: 5ch;
+	text-align: center;
+}
+
+.bases-plus-period-months {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: var(--size-2-2);
+	padding-block-start: var(--size-4-2);
+}
+
+/*
+ * 월 칸은 **고르는 항목**이라 코어 메뉴 어휘를 쓴다 — 평시엔 배경이 없고 호버에서 드러난다.
+ * 입력칸 배경(`--background-modifier-form-field`)을 쓰면 라이트 테마에서 흰 바탕과 구분이 안 됐다(캡처 실측).
+ */
+.bases-plus-modal .bases-plus-period-month {
+	height: auto;
+	padding: var(--size-2-3) var(--size-2-2);
+	border: 0;
+	border-radius: var(--radius-s);
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	cursor: var(--cursor, default);
+}
+
+.bases-plus-modal .bases-plus-period-month.is-current {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+@media (hover: hover) {
+	.bases-plus-modal .bases-plus-period-month:not(.is-current):hover {
+		background-color: var(--background-modifier-hover);
+	}
+}
+
+/* ==========================================================================
+ * 그래프 — **새로 그리는 것은 축·선·점이 있는 플롯 하나**다(디자인 결론).
+ * 격자·축 선은 코어 그래프 뷰가 쓰는 `--graph-line`, 시리즈 색은 위에서 이미 세운 옵시디언 8색 팔레트
+ * (`--bases-plus-series-N`)를 그대로 빌린다 — 이 절에서 새로 만드는 색은 하나도 없다(C2).
+ *
+ * **점만 HTML 이다.** 옵시디언 툴팁이 붙는 자리라 SVG 로 둘 수 없다(1.13.6 enhance.js 실측 — 툴팁
+ * 렌더러가 부르는 `isShown()` 이 HTMLElement 에만 있다). 그래서 SVG 의 `r`·`stroke` 대신 상자 치수로
+ * 같은 그림을 만든다: **바깥 지름 = 반지름 × 2 + 테두리**(SVG stroke 는 경로 위에 걸터앉는다).
+ * ========================================================================== */
+
+/* 임베드 바깥 테두리는 뷰 종류마다 켜는 것이지 자동이 아니다 — 앞선 세 뷰와 같은 선언을 건다. */
+.bases-view[data-view-type="bases-plus-graph"] {
+	--bases-view-padding: 0;
+	--bases-embed-border-width: var(--border-width);
+}
+
+/*
+ * 플롯은 **남는 높이를 전부 쓴다**(A2). 판을 열었을 때는 뷰 높이가 정해져 있어 자라고, 임베드는 높이가
+ * auto 라 백분율이 auto 로 풀려 아래 `min-height` 가 그 자리를 대신한다 — 잘리지 않는다(A3).
+ */
+.bases-plus-view.is-graph {
+	height: 100%;
+}
+
+.bases-plus-graph {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding-block-end: var(--size-2-2);
+}
+
+/*
+ * 범례가 **위**다 — 무엇을 보고 있는지가 먼저다(A2). 열 이름 줄과 같은 30px 이라 머리 높이가 뷰마다 같다.
+ *
+ * 안쪽 여백은 줄이 **누르는 자리**(시리즈 감추기)가 되면서 항목으로 옮겨 갔다 — 상자가 아니라 잉크를 8px
+ * 축에 세우려고 컨테이너 4px + 항목 4px 으로 나눴고, 사이 간격도 항목 여백을 빼 목업의 12px 을 지킨다.
+ */
+.bases-plus-graph-legend {
+	display: flex;
+	align-items: center;
+	flex: 0 0 auto;
+	flex-wrap: wrap;
+	gap: var(--size-4-1);
+	min-height: var(--bases-table-row-height);
+	padding-inline: var(--size-4-1);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * 범례 한 줄은 버튼이다 — 누르면 그 시리즈가 감춰진다(마스터 요청 0812). 코어 `button`(app.css:7168·7188)이
+ * 높이 30px·배경·테두리·가운데 정렬을 걸어 두 단짜리 셀렉터로 되돌린다(달력 기간 이름 버튼과 같은 처방).
+ */
+.bases-plus-view .bases-plus-graph-legend-item {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	min-width: 0;
+	height: auto;
+	padding: var(--size-2-1) var(--size-2-2);
+	border: 0;
+	border-radius: var(--radius-s);
+	background-color: transparent;
+	box-shadow: none;
+	color: inherit;
+	font-family: inherit;
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--input-font-weight);
+	cursor: var(--cursor, default);
+}
+
+@media (hover: hover) {
+	.bases-plus-view .bases-plus-graph-legend-item:hover {
+		background-color: var(--background-modifier-hover);
+		color: var(--text-normal);
+	}
+}
+
+/*
+ * 감춘 시리즈 — **자리를 지키고 흐려진다.** 사라지면 다시 켤 곳이 없고, 색을 빼면 어느 선이었는지 잊는다.
+ * 되살릴 수 있다는 사실이 화면에 남아 있어야 감추기가 되돌릴 수 있는 조작이 된다.
+ */
+.bases-plus-view .bases-plus-graph-legend-item.is-off {
+	opacity: 0.5;
+}
+
+/*
+ * x 창 스크롤 띠 — **네이티브 가로 스크롤바 그 자체다.** 손잡이를 우리가 그리지 않는다: 안쪽 띠의 폭이
+ * 전체 구간을, 손잡이의 길이가 "전체 중 얼마를 보고 있나" 를, 위치가 창의 자리를 말한다.
+ * 높이는 코어가 가로 스크롤바에 쓰는 토큰(`--scrollbar-height`, app.css:2624)이라 테마를 따라간다.
+ *
+ * 창이 없으면 요소째 감춘다 — 움직일 것이 없는데 띠만 있으면 못 쓰는 컨트롤이 하나 서 있는 셈이다.
+ */
+.bases-plus-graph-rail {
+	flex: 0 0 auto;
+	height: var(--scrollbar-height, 12px);
+	overflow-x: auto;
+	overflow-y: hidden;
+	/* 축과 나란히 선다 — 시작 자리는 y 눈금 글자 폭이 정하므로 JS 가 잰 값을 받는다. */
+	margin-inline-start: var(--bases-plus-graph-rail-start, 0px);
+	margin-inline-end: var(--bases-plus-graph-rail-end, 0px);
+}
+
+.bases-plus-graph-rail-track {
+	height: var(--border-width);
+}
+
+.bases-plus-graph-legend-name {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/* 범례 점과 선이 **같은 변수**를 쓴다 — 둘이 어긋나면 범례가 거짓말이 된다(C2). */
+.bases-plus-graph-swatch {
+	flex: 0 0 auto;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background-color: var(--bases-plus-graph-color, var(--bases-plus-series-1));
+}
+
+/* 아홉째 시리즈부터는 색이 첫째와 같다 — 파선이 둘을 가르므로 범례 표식도 선 모양이 된다(C2). */
+.bases-plus-graph-swatch.is-dashed {
+	width: 14px;
+	height: 3px;
+	border-radius: 2px;
+}
+
+/*
+ * 안쪽 둘(SVG·점 층)은 **절대 배치**다. 흐름에 두면 상자 높이가 안쪽 높이를 따라가고, 안쪽 높이는 다시
+ * 잰 상자 높이에서 나와 크기 감시가 스스로를 물어 뜯는다. 높이는 언제나 이 상자가 혼자 정한다.
+ */
+.bases-plus-graph-plot {
+	position: relative;
+	flex: 1 1 auto;
+	/* 그 아래로는 눈금이 겹친다(A2). */
+	min-height: calc(var(--bases-table-row-height) * 6);
+}
+
+.bases-plus-graph-canvas,
+.bases-plus-graph-dots {
+	position: absolute;
+	inset: 0;
+}
+
+/*
+ * 점이 축 끝에 서면 반지름만큼 상자 밖으로 나간다 — 잘리지 않게 흘러넘치는 것을 허용한다(A2).
+ *
+ * 폭·높이를 **CSS 로도 못 박는다.** SVG 는 대체 요소라 `width`·`height` 속성이 곧 고유 크기이고,
+ * 잰 값이 한 번이라도 상자보다 크면(첫 렌더나 크기 감시가 없는 환경) 그만큼 뷰에 스크롤이 생기거나
+ * 임베드에서 잘린다(헤드리스 실측: 209px 캔버스가 180px 임베드에서 세로 넘침 25px). 자리는 상자가 정한다.
+ */
+.bases-plus-graph-canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+
+/* 격자·축 — 코어 그래프 뷰가 쓰는 선 색이다. 표 격자선(--bases-table-border-color)보다 옅다(A2). */
+.bases-plus-graph-grid line,
+.bases-plus-graph-axis line {
+	stroke: var(--graph-line);
+	stroke-width: var(--border-width);
+}
+
+.bases-plus-graph-grid text,
+.bases-plus-graph-axis text {
+	fill: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.bases-plus-graph-line {
+	fill: none;
+	stroke: var(--bases-plus-graph-color, var(--bases-plus-series-1));
+	/* 대비가 낮은 색(라이트의 노랑·청록)에서도 형태가 남게 하는 최소치다(C1). */
+	stroke-width: 2px;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.bases-plus-graph-line.is-dashed {
+	stroke-dasharray: 6 4;
+}
+
+/*
+ * 점 — SVG 의 `r: 3` · `stroke: 1.5px` 과 같은 그림이다. 바깥 지름은 `반지름 × 2 + 테두리` 이고
+ * 테두리 색이 배경색인 이유는 선과 점이 같은 색이라 겹치면 뭉쳐 보이기 때문이다(C1).
+ * 자리는 좌표 그 자체이므로 상자를 자기 절반만큼 되돌려 **가운데가 좌표에 오게** 한다.
+ */
+.bases-plus-graph-dots {
+	--bases-plus-graph-dot-radius: 3px;
+	--bases-plus-graph-dot-ring: 1.5px;
+
+	pointer-events: none;
+}
+
+.bases-plus-graph-dot {
+	position: absolute;
+	box-sizing: border-box;
+	width: calc(var(--bases-plus-graph-dot-radius) * 2 + var(--bases-plus-graph-dot-ring));
+	height: calc(var(--bases-plus-graph-dot-radius) * 2 + var(--bases-plus-graph-dot-ring));
+	border: var(--bases-plus-graph-dot-ring) solid var(--background-primary);
+	border-radius: 50%;
+	background-color: var(--bases-plus-graph-color, var(--bases-plus-series-1));
+	transform: translate(-50%, -50%);
+	pointer-events: auto;
+	/* 눌러 열 수 있다는 신호다 — 실제로 누르면 설정된 방식으로 그 노트가 열린다(C3·E). */
+	cursor: var(--cursor-link, pointer);
+}
+
+/* 마우스가 올라간 점만 커진다 — 어느 점의 값을 보고 있는지 남는다(C1의 `r: 5`). */
+@media (hover: hover) {
+	.bases-plus-graph-dot:hover {
+		--bases-plus-graph-dot-radius: 5px;
+		z-index: 1;
+	}
+}
+
+/*
+ * `On hover` 와 뭉친 `Auto` — 자리는 그대로 두고 **보이지만 않는다**(확정 3).
+ * 요소를 지우면 호버할 자리까지 사라져 값을 볼 수 없다.
+ */
+.bases-plus-graph-dots.is-hover-only .bases-plus-graph-dot {
+	opacity: 0;
+}
+
+@media (hover: hover) {
+	.bases-plus-graph-dots.is-hover-only .bases-plus-graph-dot:hover {
+		opacity: 1;
+	}
+}

@@ -1,0 +1,26 @@
+{
+  "name": "obsidian-bases-plus",
+  "version": "1.0.0",
+  "description": "Extends Obsidian Bases with paging, grouping, manual ordering, and richer open targets.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "typecheck": "tsc -noEmit -skipLibCheck",
+    "test": "node test/run.cjs",
+    "preview": "node test/preview/render.cjs",
+    "preview:assets": "node test/preview/extract-app-assets.cjs"
+  },
+  "keywords": [],
+  "author": "dhkim",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "builtin-modules": "^4.0.0",
+    "esbuild": "^0.25.0",
+    "obsidian": "^1.13.1",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.2"
+  }
+}

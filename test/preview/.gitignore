@@ -1,0 +1,4 @@
+# 옵시디언 설치본에서 뽑은 저작물 — 리포에 넣지 않는다. extract-app-assets.cjs 로 다시 만든다.
+.assets/
+# 렌더 산출물(HTML·스크린샷).
+out/
