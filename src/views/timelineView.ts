@@ -1,4 +1,4 @@
-import { Menu, setIcon } from 'obsidian';
+import { Menu, TFile, setIcon } from 'obsidian';
 import type {
 	BasesAllOptions,
 	BasesEntry,
@@ -8,14 +8,12 @@ import type {
 	EventRef,
 	Plugin,
 	QueryController,
-	TFile,
 } from 'obsidian';
 import { PlusTableView, tableViewOptions } from './tableView';
 // 날짜 문자열 규칙은 달력과 **한 곳에서** 온다 — 두 뷰가 같은 값을 다르게 읽거나 쓰면 안 된다.
 import { formatLikeText as formatLike, parseDateText } from './dateText';
 import type { PlusGroupHeading, PlusRow, PlusTableHost } from './tableView';
 import type { PagerState, RowPlan } from './rowPlan';
-import { readStringList } from './rowPlan';
 import { addOpenItem, openTarget } from '../shared/openTarget';
 import {
 	isEditableProperty,
@@ -86,7 +84,6 @@ const MIN_BAR_WIDTH = 6;
 const LABEL_INSET = 8;
 /** 움직인 거리가 이보다 작으면 클릭, 넘으면 드래그다(확정 5). */
 const DRAG_THRESHOLD = 3;
-const LINK_SELECTOR = '.internal-link, a';
 
 const NOTICE_NEEDS_START = 'Choose a start date property to draw the timeline.';
 // 안내 문구는 화면에 붙는 자리(`syncNoticeEl`)에서 옮긴다 — 여기서는 원문 그대로 둔다.
@@ -220,7 +217,7 @@ export class PlusTimelineView extends PlusTableView {
 		this.registerDomEvent(this.dividerEl, 'pointercancel', (evt) => this.onDividerEnd(evt));
 		this.registerDomEvent(this.scrollEl, 'scroll', () => this.queueLabels());
 		// 확대·축소가 **무엇을 고정하는가**가 핵심이다 — 휠은 포인터 아래 날짜를 붙잡는다(B4).
-		this.registerDomEvent(this.scrollEl, 'wheel', (evt) => this.onWheel(evt as WheelEvent), {
+		this.registerDomEvent(this.scrollEl, 'wheel', (evt) => this.onWheel(evt), {
 			passive: false,
 		});
 	}
@@ -346,7 +343,7 @@ export class PlusTimelineView extends PlusTableView {
 	private readProperty(key: string): BasesPropertyId | null {
 		try {
 			return this.config.getAsPropertyId(key);
-		} catch (error) {
+		} catch {
 			const raw = this.config.get(key);
 
 			return typeof raw === 'string' && raw !== '' ? (raw as BasesPropertyId) : null;
@@ -418,7 +415,7 @@ export class PlusTimelineView extends PlusTableView {
 	private syncBars(rows: BarRow[], range: AxisRange, startProperty: BasesPropertyId | null): void {
 		const colorProperty = this.readProperty(COLOR_BY_KEY);
 		const order = colorProperty ? this.colorValues(colorProperty) : [];
-		const colors = colorProperty ? resolveBarColors(order, readBarColors(this.config)) : new Map();
+		const colors = colorProperty ? resolveBarColors(order, readBarColors(this.config)) : new Map<string, number>();
 
 		for (const row of rows) {
 			const { track } = row;
@@ -440,7 +437,7 @@ export class PlusTimelineView extends PlusTableView {
 			// 시작만 있거나 시작=종료면 점 항목이다 — 배율이 년이면 하루가 1px 미만이라 막대는 사라진다(C4).
 			const point = end === null || end.getTime() === row.start.getTime();
 			const left = xOf(range, row.start);
-			const right = point ? left : xOf(range, addUnits(end as Date, 'day', 1, range.weekStart));
+			const right = point ? left : xOf(range, addUnits(end, 'day', 1, range.weekStart));
 
 			track.active = true;
 			track.point = point;
@@ -956,7 +953,7 @@ export class PlusTimelineView extends PlusTableView {
 		const end = track.end && track.end >= track.start ? track.end : null;
 		const point = end === null || end.getTime() === track.start.getTime();
 		const left = xOf(range, track.start);
-		const right = point ? left : xOf(range, addUnits(end as Date, 'day', 1, range.weekStart));
+		const right = point ? left : xOf(range, addUnits(end, 'day', 1, range.weekStart));
 
 		track.point = point;
 		track.left = left;
@@ -1023,9 +1020,7 @@ export class PlusTimelineView extends PlusTableView {
 	}
 
 	private watchEscape(): () => void {
-		const doc = this.rootEl.ownerDocument as
-			| { addEventListener?: Function; removeEventListener?: Function }
-			| undefined;
+		const doc = this.rootEl.ownerDocument as EscapeKeyHost | undefined;
 		if (!doc || typeof doc.addEventListener !== 'function') return () => {};
 
 		const onKey = (evt: KeyboardEvent): void => {
@@ -1096,20 +1091,19 @@ export class PlusTimelineView extends PlusTableView {
 
 		this.folderWatch = this.app.vault.on('create', (file) => {
 			this.disarmFolderMove();
-			const target = file as TFile;
-			const name = target?.name;
-			if (!name) return;
+			// 폴더가 만들어져도 같은 이벤트가 온다 — 파일일 때만 옮긴다.
+			if (!(file instanceof TFile) || !file.name) return;
 
-			const path = folder === '' ? name : `${folder}/${name}`;
+			const path = folder === '' ? file.name : `${folder}/${file.name}`;
 			// 안 옮기면 그 그룹에 추가한 항목이 **다른 그룹에 나타난다**(확정 6).
-			void this.app.fileManager.renameFile(target, path).catch((error) => {
+			void this.app.fileManager.renameFile(file, path).catch((error) => {
 				console.error('Bases Plus: moving the new item into its folder failed.', error);
 			});
 		});
 
-		const view = this.rootEl.ownerDocument?.defaultView as { setTimeout?: Function } | undefined;
+		const view = this.rootEl.ownerDocument?.defaultView as TimerHost | undefined;
 		if (typeof view?.setTimeout === 'function') {
-			this.folderTimer = view.setTimeout(() => this.disarmFolderMove(), 60000) as unknown as number;
+			this.folderTimer = view.setTimeout(() => this.disarmFolderMove(), 60000);
 		}
 	}
 
@@ -1119,7 +1113,7 @@ export class PlusTimelineView extends PlusTableView {
 			this.folderWatch = null;
 		}
 
-		const view = this.rootEl.ownerDocument?.defaultView as { clearTimeout?: Function } | undefined;
+		const view = this.rootEl.ownerDocument?.defaultView as TimerHost | undefined;
 		if (this.folderTimer && typeof view?.clearTimeout === 'function') view.clearTimeout(this.folderTimer);
 		this.folderTimer = 0;
 	}
@@ -1234,23 +1228,26 @@ function numberOf(el: HTMLElement | undefined, key: string): number {
 	return typeof value === 'number' ? value : 0;
 }
 
-function childrenOf(el: HTMLElement): HTMLElement[] {
-	const children = (el as unknown as { children?: ArrayLike<HTMLElement> }).children;
-
-	return children ? Array.from(children) : [];
-}
-
 function rectOf(el: HTMLElement): { left: number } | null {
 	const measurable = el as { getBoundingClientRect?: () => { left: number } };
 
 	return typeof measurable.getBoundingClientRect === 'function' ? measurable.getBoundingClientRect() : null;
 }
 
-function isInside(target: EventTarget | null, selector: string): boolean {
-	const candidate = target as { closest?(selector: string): unknown } | null;
+/**
+ * Escape 를 받으려고 문서에서 쓰는 최소 표면. **하네스 요소에는 `ownerDocument` 가 없어** 능력으로 확인하고,
+ * `Function` 대신 실제 시그니처를 적어 등록·해제 호출까지 타입이 산다.
+ */
+type EscapeKeyHost = {
+	addEventListener?: (type: 'keydown', listener: (evt: KeyboardEvent) => void, capture: boolean) => void;
+	removeEventListener?: (type: 'keydown', listener: (evt: KeyboardEvent) => void, capture: boolean) => void;
+};
 
-	return !!candidate && typeof candidate.closest === 'function' && !!candidate.closest(selector);
-}
+/** 타이머는 그 요소가 사는 창에서 잰다 — 팝아웃 창에서도 살아 있게(공식 lint `prefer-window-timers` 와 같은 이유). */
+type TimerHost = {
+	setTimeout?: (handler: () => void, timeout: number) => number;
+	clearTimeout?: (id: number) => void;
+};
 
 function capturePointer(el: HTMLElement | undefined, pointerId: number): void {
 	const target = el as { setPointerCapture?(id: number): void } | undefined;

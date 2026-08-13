@@ -102,7 +102,7 @@ class PeriodPickerModal extends Modal {
 function format(locale: string, options: Intl.DateTimeFormatOptions, date: Date): string {
 	try {
 		return new Intl.DateTimeFormat(locale, options).format(date);
-	} catch (error) {
+	} catch {
 		return new Intl.DateTimeFormat(undefined, options).format(date);
 	}
 }

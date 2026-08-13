@@ -330,7 +330,7 @@ function labelOf(date: Date, unit: TimelineUnit, locale: string): string {
 function format(locale: string, options: Intl.DateTimeFormatOptions, date: Date): string {
 	try {
 		return new Intl.DateTimeFormat(locale, options).format(date);
-	} catch (error) {
+	} catch {
 		// 언어 태그가 이상해도 축은 서야 한다 — 기본 로케일로 떨어진다.
 		return new Intl.DateTimeFormat(undefined, options).format(date);
 	}
@@ -338,8 +338,8 @@ function format(locale: string, options: Intl.DateTimeFormatOptions, date: Date)
 
 /**
  * 화면 언어. **감지는 한 곳(`shared/i18n`)에만 둔다** — 공개 `getLanguage()` 는 사용자가 언어를 고르지 않았을 때
- * 시스템 언어로 떨어지는데(1.13.6 app.js 실측 — `localStorage.getItem('language') || 시스템 로케일`),
- * `localStorage` 만 보던 옛 경로는 그때 `en` 이라 **한 화면에서 축은 영어 옵션은 한글**이 된다.
+ * 시스템 언어로 떨어지는데(1.13.6 app.js 실측 — 저장된 언어 설정이 없으면 시스템 로케일),
+ * 저장된 값만 보던 옛 경로는 그때 `en` 이라 **한 화면에서 축은 영어 옵션은 한글**이 된다.
  *
  * 이 이름은 축·달력이 이미 쓰고 있어 그대로 두고 속만 넘긴다.
  */
@@ -352,13 +352,17 @@ export function screenLanguage(): string {
  * `Intl.Locale.getWeekInfo()` 가 있으면 그 값을 쓰고(1=월 … 7=일), 없으면 일요일로 둔다.
  */
 export function weekStartFor(locale: string): number {
+	// `Intl.Locale` 도 `getWeekInfo()` 도 없는 런타임이 있다 — 생성자부터 능력으로 확인한다.
+	const intl = Intl as unknown as {
+		Locale?: new (tag: string) => { getWeekInfo?: () => { firstDay?: number } };
+	};
+	if (typeof intl.Locale !== 'function') return 0;
+
 	try {
-		const info = (new Intl.Locale(locale) as unknown as { getWeekInfo?: () => { firstDay?: number } })
-			.getWeekInfo?.();
-		const firstDay = info?.firstDay;
+		const firstDay = new intl.Locale(locale).getWeekInfo?.()?.firstDay;
 
 		return typeof firstDay === 'number' ? firstDay % 7 : 0;
-	} catch (error) {
+	} catch {
 		return 0;
 	}
 }

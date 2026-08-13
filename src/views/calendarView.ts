@@ -46,7 +46,6 @@ import {
 	WEEK_START_CHOICES,
 	bucketByWeek,
 	buildPeriod,
-	dayDiff,
 	layoutWeek,
 	shiftPeriod,
 	weekdayNames,
@@ -1229,9 +1228,7 @@ export class PlusCalendarView extends BasesView {
 	}
 
 	private watchEscape(): () => void {
-		const doc = this.rootEl.ownerDocument as
-			| { addEventListener?: Function; removeEventListener?: Function }
-			| undefined;
+		const doc = this.rootEl.ownerDocument as EscapeKeyHost | undefined;
 		if (!doc || typeof doc.addEventListener !== 'function') return () => {};
 
 		const onKey = (evt: KeyboardEvent): void => {
@@ -1421,7 +1418,7 @@ export class PlusCalendarView extends BasesView {
 	private readProperty(key: string): BasesPropertyId | null {
 		try {
 			return this.config.getAsPropertyId(key);
-		} catch (error) {
+		} catch {
 			const raw = this.config.get(key);
 
 			return typeof raw === 'string' && raw !== '' ? (raw as BasesPropertyId) : null;
@@ -1477,12 +1474,14 @@ function laneTrack(mode: CalendarMode): string {
 	return mode === 'week' ? 'minmax(var(--bases-plus-cal-item-height), min-content)' : 'min-content';
 }
 
-/** 팝아웃 창은 realm 이 달라 `instanceof` 가 거짓이 된다 — 능력으로 판별한다(표와 같은 이유). */
-function isInside(target: EventTarget | null, selector: string): boolean {
-	const candidate = target as { closest?(selector: string): unknown } | null;
-
-	return !!candidate && typeof candidate.closest === 'function' && !!candidate.closest(selector);
-}
+/**
+ * Escape 를 받으려고 문서에서 쓰는 최소 표면. **하네스 요소에는 `ownerDocument` 가 없어** 능력으로 확인하고,
+ * `Function` 대신 실제 시그니처를 적어 등록·해제 호출까지 타입이 산다.
+ */
+type EscapeKeyHost = {
+	addEventListener?: (type: 'keydown', listener: (evt: KeyboardEvent) => void, capture: boolean) => void;
+	removeEventListener?: (type: 'keydown', listener: (evt: KeyboardEvent) => void, capture: boolean) => void;
+};
 
 /** 레이아웃이 없는 하네스에서는 전부 0 이라 드래그가 아무 일도 하지 않는다 — 실물에서만 값이 선다. */
 function rectOf(el: HTMLElement | undefined): { top: number; bottom: number; left: number; width: number } | null {

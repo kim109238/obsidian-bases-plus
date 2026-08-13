@@ -248,11 +248,11 @@ export function beginCellEdit(request: CellEditRequest): void {
  * 안 그러면 줄을 지워도 한 번 늘어난 높이가 그대로 남는다. 레이아웃이 없는 하네스에서는 둘 다 없어 건너뛴다.
  */
 function fitToContent(inputEl: HTMLElement): void {
-	const measurable = inputEl as unknown as { style?: { height?: string }; scrollHeight?: unknown };
-	if (!measurable.style || typeof measurable.scrollHeight !== 'number') return;
+	const measurable = inputEl as unknown as { scrollHeight?: unknown };
+	if (typeof measurable.scrollHeight !== 'number') return;
 
-	measurable.style.height = 'auto';
-	measurable.style.height = `${measurable.scrollHeight}px`;
+	inputEl.setCssStyles({ height: 'auto' });
+	inputEl.setCssStyles({ height: `${measurable.scrollHeight}px` });
 }
 
 /**
@@ -480,7 +480,7 @@ function showPicker(inputEl: HTMLInputElement): void {
 
 	try {
 		picker.showPicker();
-	} catch (error) {
+	} catch {
 		// 달력이 안 뜰 뿐 타이핑으로 고칠 수 있다.
 	}
 }

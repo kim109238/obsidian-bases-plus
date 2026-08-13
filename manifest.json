@@ -1,7 +1,7 @@
 {
   "id": "bases-plus",
   "name": "Bases Plus",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minAppVersion": "1.13.4",
   "description": "Adds timeline, calendar and graph views to Bases, plus paging, group controls, manual ordering and configurable open targets in an enhanced table view.",
   "author": "dhkim",

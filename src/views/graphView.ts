@@ -3,7 +3,6 @@ import type {
 	BasesAllOptions,
 	BasesEntry,
 	BasesPropertyId,
-	BasesViewConfig,
 	BasesViewRegistration,
 	Plugin,
 	QueryController,
@@ -265,7 +264,7 @@ export class PlusGraphView extends BasesView {
 		 * 휠은 **가로 뜻이 분명할 때만** 가로챈다(가로 스크롤 제스처·Shift). 세로 휠까지 먹으면 노트를
 		 * 읽어 내려가다 그래프 위에서 멈춘다 — 타임라인이 확대에 Cmd 를 요구한 것과 같은 판단이다.
 		 */
-		this.registerDomEvent(this.plotEl, 'wheel', (evt) => this.onWheel(evt as WheelEvent), { passive: false });
+		this.registerDomEvent(this.plotEl, 'wheel', (evt) => this.onWheel(evt), { passive: false });
 
 		this.watchResize();
 	}
@@ -836,7 +835,7 @@ export class PlusGraphView extends BasesView {
 	private readProperty(key: string): BasesPropertyId | null {
 		try {
 			return this.config.getAsPropertyId(key);
-		} catch (error) {
+		} catch {
 			const raw = this.config.get(key);
 
 			return typeof raw === 'string' && raw !== '' ? (raw as BasesPropertyId) : null;
@@ -868,7 +867,7 @@ export class PlusGraphView extends BasesView {
 	private displayName(property: BasesPropertyId): string {
 		try {
 			return this.config.getDisplayName(property) || String(property);
-		} catch (error) {
+		} catch {
 			return String(property);
 		}
 	}

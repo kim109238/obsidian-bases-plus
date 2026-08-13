@@ -411,7 +411,7 @@ function formatNumber(value: number, decimals: number, locale: string): string {
 			minimumFractionDigits: decimals,
 			maximumFractionDigits: decimals,
 		}).format(safe);
-	} catch (error) {
+	} catch {
 		return safe.toFixed(decimals);
 	}
 }
@@ -432,7 +432,7 @@ function timeLabel(value: number, span: number, locale: string): string {
 function format(locale: string, options: Intl.DateTimeFormatOptions, date: Date): string {
 	try {
 		return new Intl.DateTimeFormat(locale, options).format(date);
-	} catch (error) {
+	} catch {
 		// 언어 태그가 이상해도 축은 서야 한다 — 기본 로케일로 떨어진다(타임라인과 같은 처리).
 		return new Intl.DateTimeFormat(undefined, options).format(date);
 	}

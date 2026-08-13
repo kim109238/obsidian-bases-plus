@@ -324,7 +324,7 @@ function weekTitle(from: Date, to: Date, locale: string): string {
 			formatRange?: (a: Date, b: Date) => string;
 		};
 		if (typeof formatter.formatRange === 'function') return formatter.formatRange(from, to);
-	} catch (error) {
+	} catch {
 		// 언어 태그가 이상해도 머리는 서야 한다 — 아래 폴백으로 내려간다.
 	}
 
@@ -347,7 +347,7 @@ export function weekdayNames(weekStart: number, locale: string): string[] {
 function format(locale: string, options: Intl.DateTimeFormatOptions, date: Date): string {
 	try {
 		return new Intl.DateTimeFormat(locale, options).format(date);
-	} catch (error) {
+	} catch {
 		return new Intl.DateTimeFormat(undefined, options).format(date);
 	}
 }

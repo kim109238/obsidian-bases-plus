@@ -47,6 +47,8 @@ Module._load = function (request, parent, isMain) {
 
 const { FakeEl, Modal, Menu } = stub;
 global.document = { addEventListener() {}, removeEventListener() {} };
+// 실물에 늘 있는 전역 — 타이머를 `window.setTimeout` 으로 부르는 경로가 여기서도 살아야 한다(run.cjs 와 같은 자리).
+global.window = { setTimeout, clearTimeout, setInterval, clearInterval };
 
 // ── 값 스텁 — 실물 Value 처럼 renderTo 로 그리고 static type 이 값 타입이 된다 ────────────────
 class StubValue {

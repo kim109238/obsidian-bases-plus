@@ -2009,8 +2009,8 @@
 
 /*
  * 격자선을 `gap` + 배경으로 만든다. 칸마다 테두리를 주면 인접한 선이 겹쳐 2px 로 보인다(A3).
- * 가로선은 주 사이 `gap`, 세로선은 주 **안**의 `column-gap` 이 만든다 — 줄 사이(row-gap)에는
- * 선이 들어가면 안 되므로 두 축을 따로 준다.
+ * 가로선은 주 사이 `gap`, 세로선은 주 **안**의 세로 축 gap 이 만든다 — 줄 사이에는 선이 들어가면
+ * 안 되므로 두 축에 다른 값을 준다(`gap: <줄 사이> <칸 사이>`).
  */
 .bases-plus-cal-grid {
 	display: flex;
@@ -2022,8 +2022,8 @@
 .bases-plus-cal-week {
 	display: grid;
 	grid-template-columns: repeat(7, minmax(0, 1fr));
-	column-gap: var(--bases-table-row-border-width);
-	row-gap: var(--size-2-1);
+	/* 두 축을 한 줄로 준다 — `column-gap` 단독은 다단(multicolumn) 속성으로 잡혀 공식 CSS 검사에 걸린다. */
+	gap: var(--size-2-1) var(--bases-table-row-border-width);
 	/*
 	 * **줄은 위에서부터 쌓인다.** `min-height` 로 생긴 여유 높이를 기본값(`stretch`)대로 두면 그 여유가
 	 * 첫 `auto` 행(날짜 줄)으로 들어가 항목이 칸 아래쪽으로 밀린다 — 캡처에서만 보이는 종류다.

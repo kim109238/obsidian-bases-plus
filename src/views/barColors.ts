@@ -19,12 +19,15 @@ export const PALETTE_SIZE = 8;
 
 /** 저장 형태는 `{ 값: 팔레트번호 }`. 손으로 고친 `.base` 에서 오므로 관대하게 읽는다(표 뷰 F5 선례). */
 export function readBarColors(config: BasesViewConfig | undefined): Map<string, number> {
-	const stored = config?.get(BAR_COLORS_KEY);
+	const stored: unknown = config?.get(BAR_COLORS_KEY);
 	const out = new Map<string, number>();
 	if (!stored || typeof stored !== 'object') return out;
 
-	for (const [value, index] of Object.entries(stored as Record<string, unknown>)) {
-		const slot = typeof index === 'number' ? index : Number(index);
+	const record = stored as Record<string, unknown>;
+
+	for (const value of Object.keys(record)) {
+		const raw = record[value];
+		const slot = typeof raw === 'number' ? raw : Number(raw);
 		if (Number.isFinite(slot) && slot >= 1 && slot <= PALETTE_SIZE) out.set(value, Math.floor(slot));
 	}
 

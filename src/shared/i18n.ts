@@ -168,22 +168,13 @@ const KO: Record<string, string> = {
 DICTIONARIES.ko = KO;
 
 /**
- * 화면 언어. 공개 `getLanguage()` 가 정본이다(`@since 1.8.7` — 우리 `minAppVersion` 1.13.4 보다 낮아 늘 있다).
- * 없는 환경(하네스)에서는 옵시디언이 값을 넣어 두는 `localStorage` 를 읽어 같은 답을 얻는다.
+ * 화면 언어. 공개 `getLanguage()` 가 정본이자 **유일한 통로**다(`@since 1.8.7` — 우리 `minAppVersion`
+ * 1.13.4 보다 낮아 늘 있다). 코어가 언어를 못 정한 자리(빈 값)만 영어로 둔다.
  */
 export function appLanguage(): string {
-	try {
-		const code = getLanguage();
-		if (typeof code === 'string' && code !== '') return code;
-	} catch (error) {
-		// 아래 폴백으로 떨어진다.
-	}
+	const code = getLanguage();
 
-	try {
-		return window.localStorage.getItem('language') || 'en';
-	} catch (error) {
-		return 'en';
-	}
+	return typeof code === 'string' && code !== '' ? code : 'en';
 }
 
 /**

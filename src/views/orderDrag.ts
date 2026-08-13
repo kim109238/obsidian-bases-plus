@@ -148,9 +148,7 @@ export class OrderDrag {
 	 * 등록과 해제가 이 클래스 안에서 짝을 이루므로 밖으로 새지 않는다.
 	 */
 	private watchEscape(handleEl: HTMLElement): () => void {
-		const doc = handleEl.ownerDocument as
-			| { addEventListener?: Function; removeEventListener?: Function }
-			| undefined;
+		const doc = handleEl.ownerDocument as EscapeKeyHost | undefined;
 		if (!doc || typeof doc.addEventListener !== 'function') return () => {};
 
 		const onKey = (evt: KeyboardEvent): void => {
@@ -252,6 +250,15 @@ function rectOf(el: HTMLElement | undefined): Box | null {
 	return typeof box?.top === 'number' ? box : null;
 }
 
+/**
+ * Escape 를 받으려고 문서에서 쓰는 최소 표면. **하네스 요소에는 `ownerDocument` 가 없어** 능력으로 확인하고,
+ * `Function` 대신 실제 시그니처를 적어 등록·해제 호출까지 타입이 산다.
+ */
+type EscapeKeyHost = {
+	addEventListener?: (type: 'keydown', listener: (evt: KeyboardEvent) => void, capture: boolean) => void;
+	removeEventListener?: (type: 'keydown', listener: (evt: KeyboardEvent) => void, capture: boolean) => void;
+};
+
 /** 세로로 스크롤되는 가장 가까운 조상. 우리 뷰에서는 코어 `.bases-view` 가 그것이다. */
 function scrollParent(el: HTMLElement): HTMLElement | null {
 	let current = el as (HTMLElement & { scrollHeight?: number; clientHeight?: number }) | null;
@@ -265,7 +272,7 @@ function scrollParent(el: HTMLElement): HTMLElement | null {
 			return current;
 		}
 
-		current = current.parentElement as typeof current;
+		current = current.parentElement;
 	}
 
 	return null;

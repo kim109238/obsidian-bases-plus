@@ -24,6 +24,9 @@ function makeDoc() {
 	return doc;
 }
 global.document = makeDoc();
+// 타이머는 팝아웃 창까지 살도록 `window.setTimeout` 으로 부른다(공식 lint `prefer-window-timers`) —
+// 실물에는 늘 있는 전역이라 노드에도 같은 자리를 세운다. 없으면 그 경로가 하네스에서만 터진다.
+global.window = { setTimeout, clearTimeout, setInterval, clearInterval };
 
 /** `.bases-view[data-view-type=...]` 안을 우클릭한 것처럼 보이는 대상. */
 function targetInBasesView(viewType) {

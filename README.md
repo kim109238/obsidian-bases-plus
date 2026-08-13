@@ -1,64 +1,64 @@
 # Bases Plus
 
-옵시디언 Bases 뷰의 부족한 부분을 보완하여 사용하기 위해 만들었습니다
+Made to fill the gaps in Obsidian's Bases views.
 
-- 표, 타임라인, 달력, 그래프의 기능이 온전히 동작할 수 있도록 하였습니다
-- 옵시디언에서 정식으로 비슷한 기능이 수행 가능하면 해당 플러그인은 종료됩니다
+- Makes table, timeline, calendar and graph fully workable in Bases
+- This plugin will be discontinued once Obsidian ships similar features natively
 
-[English](README.en.md)
+[한국어](README.ko.md)
 
-## 설치
+## Install
 
-- 커뮤니티 플러그인 등록 예정
-- 직접 넣기: 릴리스의 `main.js`, `manifest.json`, `styles.css` 를 볼트의 `.obsidian/plugins/bases-plus/` 에 넣고 Obsidian 을 다시 시작합니다
-- 설치 뒤 base 파일을 열고 뷰 종류에서 `플러스 …` 를 고르면 됩니다. Bases 코어 플러그인이 켜져 있어야 합니다.
+- Community plugins: search for `Bases Plus` in Obsidian's community plugin browser and install it
+- Manual: copy `main.js`, `manifest.json` and `styles.css` from a release into `.obsidian/plugins/bases-plus/` in your vault, then restart Obsidian
+- Then open a base and pick one of the `Plus …` view types. The Bases core plugin must be enabled.
 
-## 공통
+## Shared
 
-- 열기 방식: 모달 · 새 탭 · 새 창
-  - 설정을 통해 기본 열기 선택
-  - 모달 안에서 새 탭, 새 창으로 열 수 있습니다
-- 우클릭: `Bases Plus 로 열기`
-  - 설정에서 활성화
-  - 기본 Bases 뷰에서도 같은 항목을 사용할 수 있습니다
+- Open targets: modal · new tab · new window
+  - Pick the default in settings
+  - A modal can promote itself to a new tab or window
+- Right-click: `Open with Bases Plus`
+  - Enable it in settings
+  - The same item is available on the built-in Bases views too
 
-## 뷰 4종
+## The four views
 
-### 플러스 표
+### Plus table
 
-- 그룹 접기, 수동 순서, 전체 페이징, 그룹 페이징
+- Collapsible groups, manual ordering, whole-table paging, per-group paging
 
-![플러스 표 뷰로 노트를 표로 본 화면](images/table-ko.png)
+![Plus table view showing notes in a table](images/table-en.png)
 
-### 플러스 타임라인
+### Plus timeline
 
-- 타임라인 테이블. 타임라인 속성보기. 상태에 따른 컬러 구분
-- 타임라인 배율 수정
+- Timeline with a table pane, timeline properties, colors by status
+- Adjustable zoom
 
-![플러스 타임라인 뷰로 기간을 가로 막대로 본 화면](images/timeline-ko.png)
+![Plus timeline view showing periods as horizontal bars](images/timeline-en.png)
 
-### 플러스 달력
+### Plus calendar
 
-- 제목 옵션. 앞 체크박스, 뒤 상태 선택
-- 속성 보기, tasks 보기
+- Title options: a checkbox in front, a status picker behind
+- Property chips and tasks on the calendar
 
-![플러스 달력 뷰로 노트를 달력에 놓은 화면](images/calendar-ko.png)
+![Plus calendar view showing notes on a calendar](images/calendar-en.png)
 
-### 플러스 그래프
+### Plus graph
 
-- 그래프 범위 지정. 속성을 통해 범례 보기. 범례 보이기/숨기기
+- X-axis windowing, series from visible properties, legend show/hide
 
-![플러스 그래프 뷰로 숫자 속성을 선 그래프로 본 화면](images/graph-ko.png)
+![Plus graph view showing numeric properties as lines](images/graph-en.png)
 
-## 후원
+## Support
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Q5D224ZJGH)
 
-## 수집·네트워크
+## Data and network
 
-- 아무 데이터도 모으지 않고, 인터넷에 연결하지 않습니다
-- 모든 동작은 볼트 안에서만 일어나고, 광고도 없습니다
+- Collects nothing and never connects to the internet
+- Everything happens inside your vault — and there are no ads
 
-## 라이선스
+## License
 
 [MIT](LICENSE)

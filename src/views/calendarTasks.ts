@@ -108,7 +108,7 @@ export class CalendarTaskSource {
 				resolve();
 			};
 
-			const timer = setTimeout(finish, TASKS_PROBE_TIMEOUT);
+			const timer = window.setTimeout(finish, TASKS_PROBE_TIMEOUT);
 
 			try {
 				this.ref = events.on(TASKS_CACHE_EVENT, (payload: unknown) => {
@@ -118,12 +118,12 @@ export class CalendarTaskSource {
 
 				events.trigger(TASKS_REQUEST_EVENT, (payload: unknown) => {
 					this.snapshot = groupTasks(payload);
-					clearTimeout(timer);
+					window.clearTimeout(timer);
 					finish();
 				});
 			} catch (error) {
 				console.error('Bases Plus: asking the Tasks plugin for its cache failed.', error);
-				clearTimeout(timer);
+				window.clearTimeout(timer);
 				finish();
 			}
 		});
@@ -310,7 +310,7 @@ function readMomentDate(value: unknown): Date | null {
 				? new Date(date.getFullYear(), date.getMonth(), date.getDate())
 				: null;
 		}
-	} catch (error) {
+	} catch {
 		return null;
 	}
 

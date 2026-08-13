@@ -52,7 +52,10 @@ export default class BasesPlusPlugin extends Plugin {
 	}
 
 	async loadSettings(): Promise<void> {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		// `loadData()` 는 `any` 라 그대로 펼치면 타입이 풀린다 — 우리 설정 모양으로 좁혀 받는다.
+		const stored = (await this.loadData()) as Partial<BasesPlusSettings> | null;
+
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, stored);
 	}
 
 	async saveSettings(): Promise<void> {

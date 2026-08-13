@@ -1,6 +1,5 @@
 import { BasesView, Menu, setIcon } from 'obsidian';
 import type {
-	App,
 	BasesAllOptions,
 	BasesEntry,
 	BasesPropertyId,
@@ -1256,7 +1255,7 @@ function applyAutoWidth(el: HTMLElement | undefined, width: number): void {
 /**
  * 그룹 기준 값이 비었을 때의 문구. **우리 문구가 아니라 네이티브 출력의 재현**이라 화면 언어를 따라간다(D3-B).
  * 네이티브 키는 `labelGroupKeyNone` = `None`(ko `없음`)이다 — 우리가 쓰던 `No value` 는 네이티브에 없는 말이었다.
- * 옵시디언 자신도 UI 언어를 `localStorage.language` 로 읽는다(app.js 오프셋 664900) — 웹 표준 API 라 비공개 비용은 0.
+ * 화면 언어는 공개 `getLanguage()` 한 곳에서만 읽는다(`shared/i18n` — 코어가 쓰는 값과 같다).
  * 우리 컨트롤 이름(New tab 등)은 영어 그대로 둔다 — 플러그인 안에서 언어가 섞이지 않게.
  */
 function noValueLabel(): string {
