@@ -2,10 +2,11 @@
 
 Made to fill the gaps in Obsidian's Bases views.
 
+- Keeps the built-in Bases behavior as much as possible and only fills in the missing pieces
 - Makes table, timeline, calendar and graph fully workable in Bases
-- This plugin will be discontinued once Obsidian ships similar features natively
+- (This plugin will be discontinued once Obsidian ships similar features natively)
 
-[한국어](README.ko.md)
+[한국어](README.ko.md) — the Korean page is the primary document; this page follows it
 
 ## Install
 
@@ -49,6 +50,20 @@ Made to fill the gaps in Obsidian's Bases views.
 - X-axis windowing, series from visible properties, legend show/hide
 
 ![Plus graph view showing numeric properties as lines](images/graph-en.png)
+
+## Feedback
+
+- Report problems or ideas via [GitHub issues](https://github.com/kim109238/obsidian-bases-plus/issues) or email (kim109238@gmail.com)
+- The plugin is maintained in a two-week cycle — feedback is collected first, then fixed in the last two days of the cycle
+
+### Next v1.1
+
+- Crash when editing dates and other properties in the modal
+- Clicking a task on the calendar does not open its note
+- The + button on a timeline group does not create a file
+- Pick list-property values directly in the table, like the built-in table does
+- Week separation on the timeline (mark Saturdays and Sundays)
+- Y-axis range control for the graph
 
 ## Support
 
